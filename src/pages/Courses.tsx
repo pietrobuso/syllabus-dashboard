@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { getDocument, GlobalWorkerOptions } from "pdfjs-dist";
-import pdfjsWorker from "pdfjs-dist/build/pdf.worker?worker";
+import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf";
 import { extractCourseData } from "@/utils/documentParser";
 import { Link } from "react-router-dom";
 import { DocumentUpload } from "@/components/DocumentUpload";
@@ -10,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useCourses } from "@/hooks/useCourses";
 import { mockCourseData } from "@/data/mockCourse";
-import { BookOpen, Plus, Calendar, Users, Trash2, Eye, GraduationCap } from "lucide-react";
+import { BookOpen, Plus, Calendar, Users, Trash2, Eye } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 const Courses = () => {
@@ -22,12 +21,10 @@ const Courses = () => {
   const handleFileUpload = async (file: File) => {
     setIsUploading(true);
     try {
-      // Set up PDF.js worker for Vite/React
-      GlobalWorkerOptions.workerSrc = pdfjsWorker;
       // Read PDF file as ArrayBuffer
       const arrayBuffer = await file.arrayBuffer();
       // Load PDF with pdfjs
-      const pdf = await getDocument({ data: arrayBuffer }).promise;
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
       let content = "";
       const pages = [];
       for (let i = 1; i <= pdf.numPages; i++) {
