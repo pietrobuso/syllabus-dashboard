@@ -1,4 +1,6 @@
 import { useState } from "react";
+import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf";
+import { extractCourseData } from "@/utils/documentParser";
 import { Link } from "react-router-dom";
 import { DocumentUpload } from "@/components/DocumentUpload";
 import { Button } from "@/components/ui/button";
@@ -18,24 +20,27 @@ const Courses = () => {
 
   const handleFileUpload = async (file: File) => {
     setIsUploading(true);
-    
     try {
-      // Simulate processing time
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      
-      // For demo purposes, use mock data with file name
-      const mockWithFileName = {
-        ...mockCourseData,
-        course: {
-          ...mockCourseData.course,
-          title: file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, ' ')
-        }
-      };
-      
-      const newCourse = addCourse(mockWithFileName, file.name);
+      // Read PDF file as ArrayBuffer
+      const arrayBuffer = await file.arrayBuffer();
+      // Load PDF with pdfjs
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      let content = "";
+      const pages = [];
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const textContent = await page.getTextContent();
+        const pageText = textContent.items.map(item => (item.str || "")).join(" ");
+        content += pageText + "\n";
+        pages.push({ page_number: i, content: pageText });
+      }
+      // Use your AI/NLP extraction logic
+      const parsedDoc = { content, pages };
+      const extracted = extractCourseData(parsedDoc);
+      if (!extracted) throw new Error("Could not extract course data");
+      const newCourse = addCourse(extracted, file.name);
       setIsUploading(false);
       setShowUpload(false);
-      
       toast({
         title: "Syllabus uploaded successfully!",
         description: `Created profile for ${newCourse.name}`,
