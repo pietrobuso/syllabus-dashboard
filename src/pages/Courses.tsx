@@ -180,10 +180,29 @@ const Courses = () => {
                           {course.semester}
                         </div>
                       )}
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Users className="w-4 h-4" />
-                        {course.data.instructors.length} instructor{course.data.instructors.length !== 1 ? 's' : ''}
-                      </div>
+                      {/* Professor Name */}
+                      {course.data.instructors && course.data.instructors.length > 0 && (
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Users className="w-4 h-4" />
+                          {course.data.instructors[0].name}
+                        </div>
+                      )}
+                      {/* University/Institution */}
+                      {course.data.course.institution && (
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <GraduationCap className="w-4 h-4" />
+                          {course.data.course.institution}
+                        </div>
+                      )}
+                      {/* Grade Distribution */}
+                      {course.data.grading && course.data.grading.length > 0 && (
+                        <div className="flex flex-wrap gap-1 text-xs text-muted-foreground">
+                          {course.data.grading.slice(0, 3).map((g, idx) => (
+                            <span key={idx}>{g.component}: {Math.round(g.weight * 100)}%</span>
+                          ))}
+                          {course.data.grading.length > 3 && <span>...</span>}
+                        </div>
+                      )}
                       <div className="text-xs text-muted-foreground">
                         Added {new Date(course.createdAt).toLocaleDateString()}
                       </div>
