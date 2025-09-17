@@ -1,7 +1,4 @@
 import { useState } from "react";
-import { getDocument, GlobalWorkerOptions } from "pdfjs-dist";
-import pdfjsWorker from "pdfjs-dist/build/pdf.worker?worker";
-import { extractCourseData } from "@/utils/documentParser";
 import { Link } from "react-router-dom";
 import { DocumentUpload } from "@/components/DocumentUpload";
 import { Button } from "@/components/ui/button";
@@ -10,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useCourses } from "@/hooks/useCourses";
 import { mockCourseData } from "@/data/mockCourse";
-import { BookOpen, Plus, Calendar, Users, Trash2, Eye, GraduationCap } from "lucide-react";
+import { BookOpen, Plus, Calendar, Users, Trash2, Eye } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 const Courses = () => {
@@ -21,29 +18,24 @@ const Courses = () => {
 
   const handleFileUpload = async (file: File) => {
     setIsUploading(true);
+    
     try {
-      // Set up PDF.js worker for Vite/React
-      GlobalWorkerOptions.workerSrc = pdfjsWorker;
-      // Read PDF file as ArrayBuffer
-      const arrayBuffer = await file.arrayBuffer();
-      // Load PDF with pdfjs
-      const pdf = await getDocument({ data: arrayBuffer }).promise;
-      let content = "";
-      const pages = [];
-      for (let i = 1; i <= pdf.numPages; i++) {
-        const page = await pdf.getPage(i);
-        const textContent = await page.getTextContent();
-        const pageText = textContent.items.map(item => (item.str || "")).join(" ");
-        content += pageText + "\n";
-        pages.push({ page_number: i, content: pageText });
-      }
-      // Use your AI/NLP extraction logic
-      const parsedDoc = { content, pages };
-      const extracted = extractCourseData(parsedDoc);
-      if (!extracted) throw new Error("Could not extract course data");
-      const newCourse = addCourse(extracted, file.name);
+      // Simulate processing time
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      
+      // For demo purposes, use mock data with file name
+      const mockWithFileName = {
+        ...mockCourseData,
+        course: {
+          ...mockCourseData.course,
+          title: file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, ' ')
+        }
+      };
+      
+      const newCourse = addCourse(mockWithFileName, file.name);
       setIsUploading(false);
       setShowUpload(false);
+      
       toast({
         title: "Syllabus uploaded successfully!",
         description: `Created profile for ${newCourse.name}`,
@@ -183,29 +175,10 @@ const Courses = () => {
                           {course.semester}
                         </div>
                       )}
-                      {/* Professor Name */}
-                      {course.data.instructors && course.data.instructors.length > 0 && (
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Users className="w-4 h-4" />
-                          {course.data.instructors[0].name}
-                        </div>
-                      )}
-                      {/* University/Institution */}
-                      {course.data.course.institution && (
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <GraduationCap className="w-4 h-4" />
-                          {course.data.course.institution}
-                        </div>
-                      )}
-                      {/* Grade Distribution */}
-                      {course.data.grading && course.data.grading.length > 0 && (
-                        <div className="flex flex-wrap gap-1 text-xs text-muted-foreground">
-                          {course.data.grading.slice(0, 3).map((g, idx) => (
-                            <span key={idx}>{g.component}: {Math.round(g.weight * 100)}%</span>
-                          ))}
-                          {course.data.grading.length > 3 && <span>...</span>}
-                        </div>
-                      )}
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Users className="w-4 h-4" />
+                        {course.data.instructors.length} instructor{course.data.instructors.length !== 1 ? 's' : ''}
+                      </div>
                       <div className="text-xs text-muted-foreground">
                         Added {new Date(course.createdAt).toLocaleDateString()}
                       </div>
