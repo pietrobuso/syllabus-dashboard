@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { DocumentUpload } from "@/components/DocumentUpload";
+import { CourseDataEditor } from "@/components/CourseDataEditor";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,10 +12,13 @@ import { BookOpen, Plus, Calendar, Users, Trash2, Eye } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { extractCourseData } from "@/utils/documentParser";
 import { extractTextFromFile } from "@/utils/fileExtract";
+import { CourseData } from "@/types/course";
 
 const Courses = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
+  const [showEditor, setShowEditor] = useState(false);
+  const [extractedData, setExtractedData] = useState<CourseData | null>(null);
   const { courses, addCourse, deleteCourse } = useCourses();
   const { toast } = useToast();
 
@@ -32,18 +36,15 @@ const Courses = () => {
         throw new Error('Could not extract course data from the document');
       }
 
-      // Fallbacks to keep UI clean
-      if (!extracted.course.title) {
-        extracted.course.title = file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, ' ');
-      }
-
-      const newCourse = addCourse(extracted, file.name);
-      toast({
-        title: "Syllabus processed",
-        description: `Created profile for ${newCourse.name}`,
+      // Set up extracted data for editing
+      setExtractedData({
+        ...extracted,
+        course: {
+          ...extracted.course,
+          title: extracted.course.title || file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, ' ')
+        }
       });
-
-      setShowUpload(false);
+      setShowEditor(true);
     } catch (err) {
       console.error(err);
       const msg = err instanceof Error ? err.message : 'There was an error processing your document.';
@@ -55,6 +56,23 @@ const Courses = () => {
     } finally {
       setIsUploading(false);
     }
+  };
+
+  const handleSaveCourse = (courseData: CourseData) => {
+    const newCourse = addCourse(courseData, extractedData?.course.title || "New Course");
+    toast({
+      title: "Course saved successfully!",
+      description: `Created profile for ${newCourse.name}`,
+    });
+    setShowEditor(false);
+    setShowUpload(false);
+    setExtractedData(null);
+  };
+
+  const handleCancelEdit = () => {
+    setShowEditor(false);
+    setShowUpload(false);
+    setExtractedData(null);
   };
 
   const handleUseSampleData = () => {
@@ -90,8 +108,21 @@ const Courses = () => {
             </p>
           </div>
 
+          {/* Course Editor Modal */}
+          {showEditor && extractedData && (
+            <div className="fixed inset-0 bg-black/50 flex items-start justify-center p-4 z-50 overflow-y-auto">
+              <div className="bg-background rounded-lg shadow-xl max-w-6xl w-full my-8">
+                <CourseDataEditor
+                  initialData={extractedData}
+                  onSave={handleSaveCourse}
+                  onCancel={handleCancelEdit}
+                />
+              </div>
+            </div>
+          )}
+
           {/* Upload Section */}
-          {showUpload && (
+          {showUpload && !showEditor && (
             <div className="mb-12">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-semibold text-foreground">Upload New Syllabus</h2>
@@ -107,7 +138,7 @@ const Courses = () => {
           )}
 
           {/* Action Buttons */}
-          {!showUpload && (
+          {!showUpload && !showEditor && (
             <div className="flex flex-wrap gap-4 justify-center mb-12">
               <Button 
                 onClick={() => setShowUpload(true)}
