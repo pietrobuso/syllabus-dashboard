@@ -1,4 +1,4 @@
-import { CourseData } from '@/types/course';
+import { CourseData, ActivityType } from '@/types/course';
 
 export interface ParsedDocument {
   content: string;
@@ -170,8 +170,8 @@ const extractGrading = (lines: string[], fullText: string) => {
   ];
 };
 
-const extractSchedule = (lines: string[], fullText: string) => {
-  const schedule = [];
+const extractSchedule = (lines: string[], fullText: string): CourseData["schedule"] => {
+  const schedule: CourseData["schedule"] = [];
   const datePattern = /(\d{1,2}\/\d{1,2}\/\d{4}|\d{4}-\d{2}-\d{2}|[A-Z][a-z]{2,8}\s+\d{1,2})/g;
   
   // Look for schedule-like patterns
@@ -196,8 +196,8 @@ const extractSchedule = (lines: string[], fullText: string) => {
   return schedule.length > 0 ? schedule : [];
 };
 
-const extractActivitiesFromLine = (line: string): string[] => {
-  const activities = [];
+const extractActivitiesFromLine = (line: string): ActivityType[] => {
+  const activities: ActivityType[] = [];
   const lowerLine = line.toLowerCase();
   
   if (lowerLine.includes('quiz')) activities.push('quiz');
@@ -210,17 +210,26 @@ const extractActivitiesFromLine = (line: string): string[] => {
 };
 
 const extractPolicies = (lines: string[], fullText: string) => {
-  const policies: any = {};
+  const policies: { late_work: string; attendance: string; honor_code: string } = {
+    late_work: "",
+    attendance: "",
+    honor_code: "",
+  };
   
   // Look for policy sections
-  const latePolicyMatch = fullText.match(/(late\s+work|late\s+assignment|late\s+policy)[^.!]*[.!]/i);
+  const latePolicyMatch = fullText.match(/(late\s+work|late\s+assignment|late\s+policy)[^.!?]*[.!?]/i);
   if (latePolicyMatch) {
-    policies.late_work = latePolicyMatch[0];
+    policies.late_work = latePolicyMatch[0].trim();
   }
 
-  const attendanceMatch = fullText.match(/(attendance|absent)[^.!]*[.!]/i);
+  const attendanceMatch = fullText.match(/(attendance|absent)[^.!?]*[.!?]/i);
   if (attendanceMatch) {
-    policies.attendance = attendanceMatch[0];
+    policies.attendance = attendanceMatch[0].trim();
+  }
+
+  const honorCodeMatch = fullText.match(/(honor\s+code|academic\s+integrity|plagiarism)[^.!?]*[.!?]/i);
+  if (honorCodeMatch) {
+    policies.honor_code = honorCodeMatch[0].trim();
   }
 
   return policies;

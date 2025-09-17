@@ -9,6 +9,8 @@ import { useCourses } from "@/hooks/useCourses";
 import { mockCourseData } from "@/data/mockCourse";
 import { BookOpen, Plus, Calendar, Users, Trash2, Eye } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { extractCourseData } from "@/utils/documentParser";
+import { extractTextFromFile } from "@/utils/fileExtract";
 
 const Courses = () => {
   const [isUploading, setIsUploading] = useState(false);
@@ -18,35 +20,40 @@ const Courses = () => {
 
   const handleFileUpload = async (file: File) => {
     setIsUploading(true);
-    
+
     try {
-      // Simulate processing time
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      
-      // For demo purposes, use mock data with file name
-      const mockWithFileName = {
-        ...mockCourseData,
-        course: {
-          ...mockCourseData.course,
-          title: file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, ' ')
-        }
-      };
-      
-      const newCourse = addCourse(mockWithFileName, file.name);
-      setIsUploading(false);
-      setShowUpload(false);
-      
+      // 1) Extract raw text from file (PDF/DOCX)
+      const parsedDoc = await extractTextFromFile(file);
+
+      // 2) Convert raw text into structured CourseData
+      const extracted = extractCourseData(parsedDoc);
+
+      if (!extracted) {
+        throw new Error('Could not extract course data from the document');
+      }
+
+      // Fallbacks to keep UI clean
+      if (!extracted.course.title) {
+        extracted.course.title = file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, ' ');
+      }
+
+      const newCourse = addCourse(extracted, file.name);
       toast({
-        title: "Syllabus uploaded successfully!",
+        title: "Syllabus processed",
         description: `Created profile for ${newCourse.name}`,
       });
-    } catch (error) {
-      setIsUploading(false);
+
+      setShowUpload(false);
+    } catch (err) {
+      console.error(err);
+      const msg = err instanceof Error ? err.message : 'There was an error processing your document.';
       toast({
         title: "Upload failed",
-        description: "There was an error processing your document. Please try again.",
+        description: msg,
         variant: "destructive"
       });
+    } finally {
+      setIsUploading(false);
     }
   };
 
