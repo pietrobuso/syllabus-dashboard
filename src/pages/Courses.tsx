@@ -10,8 +10,8 @@ import { useCourses } from "@/hooks/useCourses";
 import { mockCourseData } from "@/data/mockCourse";
 import { BookOpen, Plus, Calendar, Users, Trash2, Eye } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { extractCourseData } from "@/utils/documentParser";
 import { extractTextFromFile } from "@/utils/fileExtract";
+import { analyzeDocumentWithAI } from "@/utils/aiDocumentAnalyzer";
 import { CourseData } from "@/types/course";
 
 const Courses = () => {
@@ -29,22 +29,24 @@ const Courses = () => {
       // 1) Extract raw text from file (PDF/DOCX)
       const parsedDoc = await extractTextFromFile(file);
 
-      // 2) Convert raw text into structured CourseData
-      const extracted = extractCourseData(parsedDoc);
-
-      if (!extracted) {
-        throw new Error('Could not extract course data from the document');
-      }
+      // 2) Use AI to analyze and extract structured data
+      const aiResult = await analyzeDocumentWithAI(parsedDoc.content);
 
       // Set up extracted data for editing
       setExtractedData({
-        ...extracted,
+        ...aiResult.extractedData,
         course: {
-          ...extracted.course,
-          title: extracted.course.title || file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, ' ')
+          ...aiResult.extractedData.course,
+          title: aiResult.extractedData.course.title || file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, ' ')
         }
       });
       setShowEditor(true);
+
+      // Show success toast with confidence level
+      toast({
+        title: "Document analyzed successfully!",
+        description: `AI confidence: ${Math.round(aiResult.confidence * 100)}%. Please review and edit the extracted information.`,
+      });
     } catch (err) {
       console.error(err);
       const msg = err instanceof Error ? err.message : 'There was an error processing your document.';

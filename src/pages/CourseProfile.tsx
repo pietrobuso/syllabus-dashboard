@@ -1,17 +1,23 @@
+import { useState } from "react";
 import { useParams, Link, Navigate } from "react-router-dom";
 import { CourseStats } from "@/components/CourseStats";
 import { ScheduleView } from "@/components/ScheduleView";
 import { GradeBreakdown } from "@/components/GradeBreakdown";
 import { GradeCalculator } from "@/components/GradeCalculator";
 import { ContactInfo } from "@/components/ContactInfo";
+import { CourseDataEditor } from "@/components/CourseDataEditor";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCourses } from "@/hooks/useCourses";
-import { FileText, Calendar, BarChart3, Calculator, Users, ArrowLeft } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { FileText, Calendar, BarChart3, Calculator, Users, ArrowLeft, Edit3 } from "lucide-react";
+import { CourseData } from "@/types/course";
 
 const CourseProfile = () => {
   const { courseId } = useParams<{ courseId: string }>();
-  const { getCourse } = useCourses();
+  const { getCourse, updateCourse } = useCourses();
+  const { toast } = useToast();
+  const [showEditor, setShowEditor] = useState(false);
 
   if (!courseId) {
     return <Navigate to="/courses" replace />;
@@ -38,18 +44,50 @@ const CourseProfile = () => {
 
   const courseData = course.data;
 
+  const handleSaveCourse = (updatedData: CourseData) => {
+    updateCourse(courseId, updatedData);
+    setShowEditor(false);
+    toast({
+      title: "Course updated successfully!",
+      description: `Updated information for ${updatedData.course.title}`,
+    });
+  };
+
+  const handleCancelEdit = () => {
+    setShowEditor(false);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/30">
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-7xl mx-auto">
+          {/* Course Editor Modal */}
+          {showEditor && (
+            <div className="fixed inset-0 bg-black/50 flex items-start justify-center p-4 z-50 overflow-y-auto">
+              <div className="bg-background rounded-lg shadow-xl max-w-6xl w-full my-8">
+                <CourseDataEditor
+                  initialData={courseData}
+                  onSave={handleSaveCourse}
+                  onCancel={handleCancelEdit}
+                />
+              </div>
+            </div>
+          )}
+
           {/* Navigation Header */}
           <div className="mb-6">
-            <Link to="/courses">
-              <Button variant="ghost" className="mb-4">
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Courses
+            <div className="flex justify-between items-center">
+              <Link to="/courses">
+                <Button variant="ghost" className="mb-4">
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Back to Courses
+                </Button>
+              </Link>
+              <Button onClick={() => setShowEditor(true)} className="mb-4">
+                <Edit3 className="w-4 h-4 mr-2" />
+                Edit Course Info
               </Button>
-            </Link>
+            </div>
           </div>
 
           {/* Course Stats Header */}
