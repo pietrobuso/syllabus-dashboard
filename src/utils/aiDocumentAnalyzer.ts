@@ -1,3 +1,4 @@
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { CourseData } from '@/types/course';
 
 export interface AnalyzedDocument {
@@ -6,9 +7,35 @@ export interface AnalyzedDocument {
   extractionLog: string[];
 }
 
+const getGeminiApiKey = (): string => {
+  // In a production environment, this would come from Supabase Edge Functions
+  // For now, we'll need to handle it client-side with user input
+  const apiKey = localStorage.getItem('gemini_api_key');
+  if (!apiKey) {
+    throw new Error('Gemini API key not found. Please add your API key in settings.');
+  }
+  return apiKey;
+};
+
 export const analyzeDocumentWithAI = async (documentText: string): Promise<AnalyzedDocument> => {
   try {
-    const prompt = `
+    let apiKey: string;
+    try {
+      apiKey = getGeminiApiKey();
+    } catch (keyError) {
+      // If no API key, prompt user for it
+      const userApiKey = window.prompt('Please enter your Google Gemini API key to analyze the document:');
+      if (!userApiKey) {
+        throw new Error('API key required for document analysis');
+      }
+      localStorage.setItem('gemini_api_key', userApiKey);
+      apiKey = userApiKey;
+    }
+
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+    const analysisPrompt = `
 You are an AI assistant specialized in analyzing academic syllabus documents. Extract the following information from the provided syllabus text and return it in a structured JSON format.
 
 Please extract:
@@ -41,7 +68,7 @@ Please extract:
    - Date
    - Type (exam, deadline, etc.)
 
-Return the response in this exact JSON structure:
+Return ONLY a valid JSON response in this exact structure:
 {
   "course": {
     "title": "string",
@@ -80,28 +107,28 @@ Syllabus Text:
 ${documentText}
 `;
 
-    // Use the advanced extraction from our mock API for now
-    const { analyzeDocument } = await import('../api/analyze-document');
-    const analysisResult = await analyzeDocument(documentText);
-    const result = { analysis: analysisResult };
+    const result = await model.generateContent(analysisPrompt);
+    const response = await result.response;
+    const analysisResult = response.text();
     
     // Parse the AI response
     let extractedData: CourseData;
     try {
       // Try to extract JSON from the AI response
-      const jsonMatch = result.analysis.match(/\{[\s\S]*\}/);
+      const jsonMatch = analysisResult.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         extractedData = JSON.parse(jsonMatch[0]);
       } else {
-        throw new Error('No valid JSON found in AI response');
+        // Try parsing the entire response as JSON
+        extractedData = JSON.parse(analysisResult);
       }
     } catch (parseError) {
-      console.error('Error parsing AI response:', parseError);
+      console.error('Error parsing Gemini response:', parseError);
       // Fallback to basic extraction
       return {
         extractedData: createFallbackData(documentText),
         confidence: 0.2,
-        extractionLog: ['AI parsing failed, using basic extraction', `Parse error: ${parseError}`]
+        extractionLog: ['Gemini parsing failed, using basic extraction', `Parse error: ${parseError}`]
       };
     }
 
@@ -110,22 +137,22 @@ ${documentText}
     
     return {
       extractedData: cleanedData,
-      confidence: 0.8,
+      confidence: 0.9,
       extractionLog: [
-        'Successfully analyzed with AI',
+        'Successfully analyzed with Google Gemini',
         'Extracted course information, instructors, and grading details'
       ]
     };
 
   } catch (error) {
-    console.error('AI analysis failed:', error);
+    console.error('Gemini analysis failed:', error);
     
     // Fallback to basic extraction
     return {
       extractedData: createFallbackData(documentText),
       confidence: 0.3,
       extractionLog: [
-        'AI analysis failed, using fallback extraction',
+        'Gemini analysis failed, using fallback extraction',
         `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
       ]
     };
