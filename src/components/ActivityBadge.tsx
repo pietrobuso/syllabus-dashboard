@@ -41,7 +41,11 @@ const activityConfig = {
 };
 
 export const ActivityBadge = ({ type, className = "" }: ActivityBadgeProps) => {
-  const config = activityConfig[type];
+  const config = activityConfig[type] || {
+    label: type.charAt(0).toUpperCase() + type.slice(1),
+    className: "bg-muted/10 text-muted-foreground border-muted/20 hover:bg-muted/20",
+    icon: BookOpen
+  };
   const Icon = config.icon;
   
   return (
