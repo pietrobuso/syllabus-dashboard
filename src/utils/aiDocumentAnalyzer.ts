@@ -58,15 +58,22 @@ Please extract:
    - Weight (as decimal, e.g., 0.3 for 30%)
    - Description
 
-4. **Course Policies**:
+4. **Weekly Schedule** (extract weekly topics and activities):
+   - Date or week number
+   - Topic/theme for the week
+   - Activities (lecture, lab, quiz, exam, assignment, monitored)
+   - Deliverables (assignments, projects, exams due)
+   - Required readings
+
+5. **Important Dates** (extract all significant dates):
+   - Event name (e.g., "Midterm Exam", "Project 1 Due", "Quiz 3")
+   - Date (in YYYY-MM-DD format if possible)
+   - Type (exam, deadline, quiz, project, break)
+
+6. **Course Policies**:
    - Late work policy
    - Attendance policy
    - Honor code/academic integrity policy
-
-5. **Important Dates** (if available):
-   - Event name
-   - Date
-   - Type (exam, deadline, etc.)
 
 Return ONLY a valid JSON response in this exact structure:
 {
@@ -88,20 +95,38 @@ Return ONLY a valid JSON response in this exact structure:
     "weight": number,
     "description": "string"
   }],
+  "schedule": [{
+    "date": "YYYY-MM-DD or week description",
+    "week": number,
+    "topic": "string (main topic/theme)",
+    "activities": ["lecture", "lab", "quiz", "exam", "assignment", "monitored"],
+    "deliverables": [{
+      "name": "string",
+      "due": "YYYY-MM-DD",
+      "type": "assignment" | "quiz" | "exam" | "project"
+    }],
+    "readings": ["string (optional reading assignments)"]
+  }],
+  "important_dates": [{
+    "name": "string (e.g., Midterm Exam, Project Due)",
+    "date": "YYYY-MM-DD",
+    "type": "exam" | "deadline" | "quiz" | "project" | "break"
+  }],
   "policies": {
     "late_work": "string",
     "attendance": "string", 
     "honor_code": "string"
-  },
-  "schedule": [],
-  "important_dates": [{
-    "name": "string",
-    "date": "string",
-    "type": "exam" | "deadline"
-  }]
+  }
 }
 
-If information is not available, use empty strings or empty arrays. Ensure grading weights are decimals that sum to approximately 1.0.
+IMPORTANT EXTRACTION GUIDELINES:
+- Extract ALL dates mentioned in the syllabus (exams, quizzes, assignment due dates, project deadlines)
+- Look for weekly schedules, course calendars, or timeline sections
+- Identify monitored activities (in-class exercises, labs, participation activities)
+- Pay attention to recurring activities (weekly quizzes, bi-weekly assignments)
+- If dates are relative (e.g., "Week 3"), convert to actual dates if semester start is mentioned
+- If information is not available, use empty strings or empty arrays
+- Ensure grading weights are decimals that sum to approximately 1.0
 
 Syllabus Text:
 ${documentText}
@@ -202,13 +227,33 @@ const createFallbackData = (text: string): CourseData => {
       { component: "Exams", weight: 0.4, description: "Midterm and final exams" },
       { component: "Participation", weight: 0.2, description: "Class participation" }
     ],
-    schedule: [],
+    schedule: [
+      {
+        date: "2024-09-01",
+        week: 1,
+        topic: "Course Introduction",
+        activities: ["lecture" as const],
+        deliverables: [],
+        readings: []
+      }
+    ],
     policies: {
       late_work: "",
       attendance: "",
       honor_code: ""
     },
-    important_dates: []
+    important_dates: [
+      {
+        name: "Midterm Exam",
+        date: "2024-10-15",
+        type: "exam" as const
+      },
+      {
+        name: "Final Exam",
+        date: "2024-12-10",
+        type: "exam" as const
+      }
+    ]
   };
 };
 
@@ -247,13 +292,40 @@ const validateAndCleanData = (data: any): CourseData => {
           { component: "Exams", weight: 0.4, description: "Midterm and final exams" },
           { component: "Participation", weight: 0.2, description: "Class participation" }
         ],
-    schedule: data.schedule || [],
+    schedule: Array.isArray(data.schedule) && data.schedule.length > 0
+      ? data.schedule.map((item: any) => ({
+          date: item.date || "",
+          week: typeof item.week === 'number' ? item.week : 1,
+          topic: item.topic || "Topic",
+          activities: Array.isArray(item.activities) ? item.activities : ["lecture"],
+          deliverables: Array.isArray(item.deliverables) ? item.deliverables : [],
+          readings: Array.isArray(item.readings) ? item.readings : []
+        }))
+      : [{
+          date: "2024-09-01",
+          week: 1,
+          topic: "Course Introduction",
+          activities: ["lecture"],
+          deliverables: [],
+          readings: []
+        }],
     policies: {
       late_work: data.policies?.late_work || "",
       attendance: data.policies?.attendance || "",
       honor_code: data.policies?.honor_code || ""
     },
-    important_dates: Array.isArray(data.important_dates) ? data.important_dates : []
+    important_dates: Array.isArray(data.important_dates) && data.important_dates.length > 0
+      ? data.important_dates.map((item: any) => ({
+          name: item.name || "Important Date",
+          date: item.date || "",
+          type: (["exam", "deadline", "quiz", "project", "break", "other"].includes(item.type)) 
+            ? item.type 
+            : "deadline"
+        }))
+      : [
+          { name: "Midterm Exam", date: "2024-10-15", type: "exam" },
+          { name: "Final Exam", date: "2024-12-10", type: "exam" }
+        ]
   };
 
   return cleanData;

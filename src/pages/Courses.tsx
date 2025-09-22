@@ -42,10 +42,18 @@ const Courses = () => {
       });
       setShowEditor(true);
 
-      // Show success toast with confidence level
+      // Show success toast with confidence level and extraction details
       toast({
         title: "Document analyzed successfully!",
-        description: `AI confidence: ${Math.round(aiResult.confidence * 100)}%. Please review and edit the extracted information.`,
+        description: `AI confidence: ${Math.round(aiResult.confidence * 100)}%. Found ${aiResult.extractedData.schedule.length} schedule items and ${aiResult.extractedData.important_dates.length} important dates.`,
+      });
+
+      // Log extraction details for debugging
+      console.log("AI Analysis Results:", {
+        confidence: aiResult.confidence,
+        scheduleItems: aiResult.extractedData.schedule.length,
+        importantDates: aiResult.extractedData.important_dates.length,
+        extractionLog: aiResult.extractionLog
       });
     } catch (err) {
       console.error(err);

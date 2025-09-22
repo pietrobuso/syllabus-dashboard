@@ -6,9 +6,11 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { CourseData, GradingComponent, Instructor } from "@/types/course";
-import { Plus, Trash2, Save, X } from "lucide-react";
+import { CourseData, GradingComponent, Instructor, ActivityType } from "@/types/course";
+import { Plus, Trash2, Save, X, Calendar, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface CourseDataEditorProps {
   initialData: CourseData;
@@ -87,6 +89,63 @@ export const CourseDataEditor = ({ initialData, onSave, onCancel }: CourseDataEd
     setCourseData(prev => ({
       ...prev,
       policies: { ...prev.policies, [field]: value }
+    }));
+  };
+
+  const addScheduleItem = () => {
+    setCourseData(prev => ({
+      ...prev,
+      schedule: [...prev.schedule, {
+        date: "",
+        week: prev.schedule.length + 1,
+        topic: "",
+        activities: [],
+        deliverables: [],
+        readings: []
+      }]
+    }));
+  };
+
+  const removeScheduleItem = (index: number) => {
+    setCourseData(prev => ({
+      ...prev,
+      schedule: prev.schedule.filter((_, i) => i !== index)
+    }));
+  };
+
+  const updateScheduleItem = (index: number, field: string, value: any) => {
+    setCourseData(prev => ({
+      ...prev,
+      schedule: prev.schedule.map((item, i) => 
+        i === index ? { ...item, [field]: value } : item
+      )
+    }));
+  };
+
+  const addImportantDate = () => {
+    setCourseData(prev => ({
+      ...prev,
+      important_dates: [...prev.important_dates, {
+        name: "",
+        date: "",
+        type: "deadline" as const
+      }]
+    }));
+  };
+
+  const removeImportantDate = (index: number) => {
+    setCourseData(prev => ({
+      ...prev,
+      important_dates: prev.important_dates.filter((_, i) => i !== index)
+    }));
+  };
+
+  const updateImportantDate = (index: number, field: string, value: any) => {
+    setCourseData(prev => ({
+      ...prev,
+      important_dates: prev.important_dates.map((item, i) => 
+        i === index ? { ...item, [field]: value } : item
+      )
     }));
   };
 
@@ -306,6 +365,183 @@ export const CourseDataEditor = ({ initialData, onSave, onCancel }: CourseDataEd
               </div>
             </div>
           ))}
+        </CardContent>
+      </Card>
+
+      {/* Schedule */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <Calendar className="w-5 h-5" />
+              Course Schedule
+            </CardTitle>
+            <p className="text-sm text-muted-foreground mt-1">
+              Weekly topics, activities, and deliverables
+            </p>
+          </div>
+          <Button size="sm" onClick={addScheduleItem}>
+            <Plus className="w-4 h-4 mr-2" />
+            Add Week
+          </Button>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {courseData.schedule.map((item, index) => (
+            <div key={index} className="p-4 border rounded-lg space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="font-medium">Week {item.week}</h4>
+                <Button size="sm" variant="ghost" onClick={() => removeScheduleItem(index)}>
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div>
+                  <Label htmlFor={`schedule-date-${index}`}>Date/Week</Label>
+                  <Input
+                    id={`schedule-date-${index}`}
+                    value={item.date}
+                    onChange={(e) => updateScheduleItem(index, 'date', e.target.value)}
+                    placeholder="2024-09-15 or Week 1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor={`schedule-week-${index}`}>Week Number</Label>
+                  <Input
+                    id={`schedule-week-${index}`}
+                    type="number"
+                    value={item.week}
+                    onChange={(e) => updateScheduleItem(index, 'week', parseInt(e.target.value) || 1)}
+                    placeholder="1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor={`schedule-topic-${index}`}>Topic</Label>
+                  <Input
+                    id={`schedule-topic-${index}`}
+                    value={item.topic}
+                    onChange={(e) => updateScheduleItem(index, 'topic', e.target.value)}
+                    placeholder="Introduction to Programming"
+                  />
+                </div>
+              </div>
+              <div>
+                <Label>Activities</Label>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {(['lecture', 'lab', 'quiz', 'exam', 'assignment', 'monitored'] as ActivityType[]).map(activity => (
+                    <div key={activity} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`activity-${index}-${activity}`}
+                        checked={item.activities.includes(activity)}
+                        onCheckedChange={(checked) => {
+                          const activities = checked 
+                            ? [...item.activities, activity]
+                            : item.activities.filter(a => a !== activity);
+                          updateScheduleItem(index, 'activities', activities);
+                        }}
+                      />
+                      <Label 
+                        htmlFor={`activity-${index}-${activity}`}
+                        className="text-sm capitalize cursor-pointer"
+                      >
+                        {activity}
+                      </Label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <Label htmlFor={`schedule-readings-${index}`}>Readings (comma-separated)</Label>
+                <Input
+                  id={`schedule-readings-${index}`}
+                  value={item.readings?.join(', ') || ''}
+                  onChange={(e) => updateScheduleItem(index, 'readings', e.target.value.split(',').map(r => r.trim()).filter(r => r))}
+                  placeholder="Chapter 1, pp. 1-15"
+                />
+              </div>
+            </div>
+          ))}
+          {courseData.schedule.length === 0 && (
+            <div className="text-center py-8 text-muted-foreground">
+              <Calendar className="w-12 h-12 mx-auto mb-3 opacity-50" />
+              <p>No schedule items yet. Add weeks to build your course schedule.</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Important Dates */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="w-5 h-5" />
+              Important Dates
+            </CardTitle>
+            <p className="text-sm text-muted-foreground mt-1">
+              Exams, project deadlines, and other key dates
+            </p>
+          </div>
+          <Button size="sm" onClick={addImportantDate}>
+            <Plus className="w-4 h-4 mr-2" />
+            Add Date
+          </Button>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {courseData.important_dates.map((item, index) => (
+            <div key={index} className="p-4 border rounded-lg space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="font-medium">Important Date {index + 1}</h4>
+                <Button size="sm" variant="ghost" onClick={() => removeImportantDate(index)}>
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div>
+                  <Label htmlFor={`date-name-${index}`}>Event Name</Label>
+                  <Input
+                    id={`date-name-${index}`}
+                    value={item.name}
+                    onChange={(e) => updateImportantDate(index, 'name', e.target.value)}
+                    placeholder="Midterm Exam"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor={`date-date-${index}`}>Date</Label>
+                  <Input
+                    id={`date-date-${index}`}
+                    type="date"
+                    value={item.date}
+                    onChange={(e) => updateImportantDate(index, 'date', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor={`date-type-${index}`}>Type</Label>
+                  <Select
+                    value={item.type}
+                    onValueChange={(value) => updateImportantDate(index, 'type', value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="exam">Exam</SelectItem>
+                      <SelectItem value="deadline">Deadline</SelectItem>
+                      <SelectItem value="quiz">Quiz</SelectItem>
+                      <SelectItem value="project">Project</SelectItem>
+                      <SelectItem value="break">Break</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+          ))}
+          {courseData.important_dates.length === 0 && (
+            <div className="text-center py-8 text-muted-foreground">
+              <Clock className="w-12 h-12 mx-auto mb-3 opacity-50" />
+              <p>No important dates yet. Add key dates for your course.</p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
