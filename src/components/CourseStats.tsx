@@ -2,7 +2,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CourseData } from "@/types/course";
 import { Calendar, Clock, GraduationCap, Users } from "lucide-react";
-import { format, parseISO, isAfter } from "date-fns";
+import { format, parseISO, isAfter, startOfDay, isSameDay } from "date-fns";
 
 interface CourseStatsProps {
   courseData: CourseData;
@@ -11,11 +11,12 @@ interface CourseStatsProps {
 export const CourseStats = ({ courseData }: CourseStatsProps) => {
   const today = new Date();
   
-  // Find next class
+  // Find next class (today or future)
   const upcomingClasses = courseData.schedule
     .filter(item => {
       try {
-        return isAfter(parseISO(item.date), today);
+        const classDate = parseISO(item.date);
+        return isSameDay(classDate, today) || isAfter(classDate, startOfDay(today));
       } catch {
         return false;
       }
@@ -33,7 +34,8 @@ export const CourseStats = ({ courseData }: CourseStatsProps) => {
     })))
     .filter(deliverable => {
       try {
-        return isAfter(parseISO(deliverable.due), today);
+        const dueDate = parseISO(deliverable.due);
+        return isSameDay(dueDate, today) || isAfter(dueDate, startOfDay(today));
       } catch {
         return false;
       }
