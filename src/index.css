@@ -8,60 +8,60 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 250 100% 98%;
-    --foreground: 213 31% 16%;
+    --background: 340 100% 97%;
+    --foreground: 220 15% 25%;
 
     --card: 0 0% 100%;
-    --card-foreground: 213 31% 16%;
+    --card-foreground: 220 15% 25%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 213 31% 16%;
+    --popover-foreground: 220 15% 25%;
 
-    --primary: 213 94% 68%;
+    --primary: 280 100% 70%;
     --primary-foreground: 0 0% 100%;
-    --primary-glow: 213 94% 78%;
+    --primary-glow: 280 100% 80%;
 
-    --secondary: 213 19% 92%;
-    --secondary-foreground: 213 31% 16%;
+    --secondary: 320 70% 90%;
+    --secondary-foreground: 220 15% 25%;
 
-    --muted: 213 19% 96%;
-    --muted-foreground: 213 19% 46%;
+    --muted: 320 30% 95%;
+    --muted-foreground: 220 15% 60%;
 
-    --accent: 38 92% 50%;
-    --accent-foreground: 0 0% 100%;
-    --accent-light: 38 92% 95%;
+    --accent: 45 100% 65%;
+    --accent-foreground: 220 15% 25%;
+    --accent-light: 45 100% 92%;
 
-    --success: 142 76% 36%;
+    --success: 150 80% 55%;
     --success-foreground: 0 0% 100%;
-    --success-light: 142 76% 95%;
+    --success-light: 150 80% 95%;
 
-    --warning: 32 95% 44%;
+    --warning: 35 100% 60%;
     --warning-foreground: 0 0% 100%;
-    --warning-light: 32 95% 95%;
+    --warning-light: 35 100% 95%;
 
-    --destructive: 0 84% 60%;
+    --destructive: 0 90% 65%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 213 27% 84%;
-    --input: 213 27% 84%;
-    --ring: 213 94% 68%;
+    --border: 320 30% 85%;
+    --input: 320 30% 85%;
+    --ring: 280 100% 70%;
 
     /* Academic Dashboard Specific Colors */
-    --quiz-color: 268 83% 58%;
-    --exam-color: 0 84% 60%;
-    --assignment-color: 142 76% 36%;
-    --monitored-color: 32 95% 44%;
+    --quiz-color: 260 90% 70%;
+    --exam-color: 0 90% 65%;
+    --assignment-color: 150 80% 55%;
+    --monitored-color: 35 100% 60%;
     
     /* Beautiful Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(213 94% 68%), hsl(213 94% 78%));
-    --gradient-academic: linear-gradient(135deg, hsl(213 94% 68%), hsl(268 83% 58%));
-    --gradient-hero: linear-gradient(135deg, hsl(213 94% 68%) 0%, hsl(268 83% 58%) 50%, hsl(38 92% 50%) 100%);
-    --gradient-card: linear-gradient(145deg, hsl(0 0% 100%) 0%, hsl(213 19% 98%) 100%);
+    --gradient-primary: linear-gradient(135deg, hsl(280 100% 70%), hsl(280 100% 80%));
+    --gradient-academic: linear-gradient(135deg, hsl(280 100% 70%), hsl(260 90% 70%));
+    --gradient-hero: linear-gradient(135deg, hsl(280 100% 70%) 0%, hsl(320 90% 65%) 30%, hsl(45 100% 65%) 70%, hsl(180 85% 60%) 100%);
+    --gradient-card: linear-gradient(145deg, hsl(0 0% 100%) 0%, hsl(320 30% 98%) 100%);
     
     /* Shadows */
-    --shadow-soft: 0 2px 10px hsl(213 94% 68% / 0.1);
-    --shadow-medium: 0 8px 30px hsl(213 94% 68% / 0.15);
-    --shadow-strong: 0 20px 40px hsl(213 94% 68% / 0.2);
+    --shadow-soft: 0 2px 10px hsl(280 100% 70% / 0.15);
+    --shadow-medium: 0 8px 30px hsl(280 100% 70% / 0.20);
+    --shadow-strong: 0 20px 40px hsl(280 100% 70% / 0.25);
 
     --radius: 0.5rem;
 
@@ -127,6 +127,6 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-fredoka;
   }
 }
