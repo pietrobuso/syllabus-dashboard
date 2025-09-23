@@ -8,116 +8,110 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 340 100% 97%;
-    --foreground: 220 15% 25%;
+    --background: 220 100% 97%; /* light, clean background with a hint of blue */
+    --foreground: 222 47% 12%;  /* deep navy for strong readability */
 
     --card: 0 0% 100%;
-    --card-foreground: 220 15% 25%;
+    --card-foreground: 222 47% 12%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 220 15% 25%;
+    --popover-foreground: 222 47% 12%;
 
-    --primary: 280 100% 70%;
+    --primary: 258 85% 65%; /* vibrant violet, richer than before */
     --primary-foreground: 0 0% 100%;
-    --primary-glow: 280 100% 80%;
+    --primary-glow: 258 85% 75%;
 
-    --secondary: 320 70% 90%;
-    --secondary-foreground: 220 15% 25%;
+    --secondary: 200 70% 94%; /* soft cyan tint for subtle contrast */
+    --secondary-foreground: 222 47% 12%;
 
-    --muted: 320 30% 95%;
-    --muted-foreground: 220 15% 60%;
+    --muted: 220 16% 94%;
+    --muted-foreground: 220 15% 40%;
 
-    --accent: 45 100% 65%;
-    --accent-foreground: 220 15% 25%;
-    --accent-light: 45 100% 92%;
+    --accent: 28 95% 55%; /* warm orange for energy */
+    --accent-foreground: 0 0% 100%;
+    --accent-light: 28 95% 93%;
 
-    --success: 150 80% 55%;
+    --success: 150 65% 40%; /* lush green with vibrancy */
     --success-foreground: 0 0% 100%;
-    --success-light: 150 80% 95%;
+    --success-light: 150 65% 92%;
 
-    --warning: 35 100% 60%;
+    --warning: 35 100% 48%; /* golden amber */
     --warning-foreground: 0 0% 100%;
-    --warning-light: 35 100% 95%;
+    --warning-light: 35 100% 92%;
 
-    --destructive: 0 90% 65%;
+    --destructive: 0 80% 60%; /* vivid red */
     --destructive-foreground: 0 0% 100%;
 
-    --border: 320 30% 85%;
-    --input: 320 30% 85%;
-    --ring: 280 100% 70%;
+    --border: 220 20% 82%;
+    --input: 220 20% 82%;
+    --ring: 258 85% 65%;
 
     /* Academic Dashboard Specific Colors */
-    --quiz-color: 260 90% 70%;
-    --exam-color: 0 90% 65%;
-    --assignment-color: 150 80% 55%;
-    --monitored-color: 35 100% 60%;
+    --quiz-color: 270 85% 60%;      /* purple-pink for quiz */
+    --exam-color: 0 80% 60%;        /* red for urgency */
+    --assignment-color: 150 65% 40%;/* green for progress */
+    --monitored-color: 35 100% 48%; /* amber for alerts */
     
-    /* Beautiful Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(280 100% 70%), hsl(280 100% 80%));
-    --gradient-academic: linear-gradient(135deg, hsl(280 100% 70%), hsl(260 90% 70%));
-    --gradient-hero: linear-gradient(135deg, hsl(280 100% 70%) 0%, hsl(320 90% 65%) 30%, hsl(45 100% 65%) 70%, hsl(180 85% 60%) 100%);
-    --gradient-card: linear-gradient(145deg, hsl(0 0% 100%) 0%, hsl(320 30% 98%) 100%);
+    /* Vibrant Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(258 85% 65%), hsl(258 85% 75%));
+    --gradient-academic: linear-gradient(135deg, hsl(258 85% 65%), hsl(270 85% 60%));
+    --gradient-hero: linear-gradient(135deg, hsl(258 85% 65%) 0%, hsl(270 85% 60%) 50%, hsl(28 95% 55%) 100%);
+    --gradient-card: linear-gradient(145deg, hsl(0 0% 100%) 0%, hsl(220 16% 96%) 100%);
     
     /* Shadows */
-    --shadow-soft: 0 2px 10px hsl(280 100% 70% / 0.15);
-    --shadow-medium: 0 8px 30px hsl(280 100% 70% / 0.20);
-    --shadow-strong: 0 20px 40px hsl(280 100% 70% / 0.25);
+    --shadow-soft: 0 2px 10px hsl(258 85% 65% / 0.1);
+    --shadow-medium: 0 8px 30px hsl(258 85% 65% / 0.15);
+    --shadow-strong: 0 20px 40px hsl(258 85% 65% / 0.2);
 
     --radius: 0.5rem;
 
-    --sidebar-background: 0 0% 98%;
-
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-background: 220 16% 96%;
+    --sidebar-foreground: 222 47% 12%;
+    --sidebar-primary: 258 85% 65%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 200 70% 94%;
+    --sidebar-accent-foreground: 222 47% 12%;
+    --sidebar-border: 220 20% 82%;
+    --sidebar-ring: 258 85% 65%;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
+    --background: 222 47% 8%;
     --foreground: 210 40% 98%;
 
-    --card: 222.2 84% 4.9%;
+    --card: 222 47% 8%;
     --card-foreground: 210 40% 98%;
 
-    --popover: 222.2 84% 4.9%;
+    --popover: 222 47% 8%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary: 258 85% 65%;
+    --primary-foreground: 222 47% 12%;
 
-    --secondary: 217.2 32.6% 17.5%;
+    --secondary: 222 30% 18%;
     --secondary-foreground: 210 40% 98%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 222 30% 18%;
+    --muted-foreground: 215 20% 65%;
 
-    --accent: 217.2 32.6% 17.5%;
+    --accent: 28 95% 55%;
     --accent-foreground: 210 40% 98%;
 
-    --destructive: 0 62.8% 30.6%;
+    --destructive: 0 70% 40%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
+    --border: 222 30% 18%;
+    --input: 222 30% 18%;
+    --ring: 258 85% 65%;
+
+    --sidebar-background: 222 47% 8%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 258 85% 65%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-accent: 222 30% 18%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 222 30% 18%;
+    --sidebar-ring: 258 85% 65%;
   }
 }
 
@@ -127,6 +121,6 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground font-fredoka;
+    @apply bg-background text-foreground;
   }
 }
