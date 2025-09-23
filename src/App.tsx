@@ -7,6 +7,7 @@ import { CoursesProvider } from "@/hooks/useCourses";
 import Index from "./pages/Index";
 import Courses from "./pages/Courses";
 import CourseProfile from "./pages/CourseProfile";
+import CalendarView from "./pages/CalendarView";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -22,6 +23,7 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/courses" element={<Courses />} />
             <Route path="/course/:courseId" element={<CourseProfile />} />
+            <Route path="/calendar" element={<CalendarView />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

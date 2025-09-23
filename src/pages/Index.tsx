@@ -33,12 +33,20 @@ const Index = () => {
               </Button>
             </Link>
             {courses.length > 0 && (
-              <Link to="/courses">
-                <Button variant="outline" size="lg" className="shadow-soft hover:shadow-medium transition-all min-w-[200px]">
-                  <FolderOpen className="w-5 h-5 mr-2" />
-                  View My Courses ({courses.length})
-                </Button>
-              </Link>
+              <>
+                <Link to="/courses">
+                  <Button variant="outline" size="lg" className="shadow-soft hover:shadow-medium transition-all min-w-[200px]">
+                    <FolderOpen className="w-5 h-5 mr-2" />
+                    View My Courses ({courses.length})
+                  </Button>
+                </Link>
+                <Link to="/calendar">
+                  <Button variant="outline" size="lg" className="shadow-soft hover:shadow-medium transition-all min-w-[200px]">
+                    <Calendar className="w-5 h-5 mr-2" />
+                    Calendar View
+                  </Button>
+                </Link>
+              </>
             )}
           </div>
 
