@@ -165,6 +165,17 @@ const Courses = () => {
                 <BookOpen className="w-4 h-4 mr-2" />
                 Add Sample Course
               </Button>
+              {courses.length > 0 && (
+                <Link to="/calendar">
+                  <Button 
+                    variant="outline"
+                    className="shadow-soft hover:shadow-medium transition-all"
+                  >
+                    <Calendar className="w-4 h-4 mr-2" />
+                    View Calendar
+                  </Button>
+                </Link>
+              )}
             </div>
           )}
 
