@@ -1,11 +1,3 @@
-
-{
-  "homepage": "https://pietrobuso.github.io/syllabus-dashboard",
-  "scripts": {
-    "predeploy": "npm run build",
-    "deploy": "gh-pages -d dist"
-  }
-}
 {
   "name": "vite_react_shadcn_ts",
   "private": true,
