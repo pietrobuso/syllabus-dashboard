@@ -68,15 +68,17 @@ const Courses = () => {
     }
   };
 
-  const handleSaveCourse = (courseData: CourseData) => {
-    const newCourse = addCourse(courseData, extractedData?.course.title || "New Course");
-    toast({
-      title: "Course saved successfully!",
-      description: `Created profile for ${newCourse.name}`,
-    });
-    setShowEditor(false);
-    setShowUpload(false);
-    setExtractedData(null);
+  const handleSaveCourse = async (courseData: CourseData) => {
+    const newCourse = await addCourse(courseData, extractedData?.course.title || "New Course");
+    if (newCourse) {
+      toast({
+        title: "Course saved successfully!",
+        description: `Created profile for ${newCourse.name}`,
+      });
+      setShowEditor(false);
+      setShowUpload(false);
+      setExtractedData(null);
+    }
   };
 
   const handleCancelEdit = () => {
@@ -85,12 +87,14 @@ const Courses = () => {
     setExtractedData(null);
   };
 
-  const handleUseSampleData = () => {
-    const newCourse = addCourse(mockCourseData, "Sample Course");
-    toast({
-      title: "Sample course added",
-      description: `Created profile for ${newCourse.name}`,
-    });
+  const handleUseSampleData = async () => {
+    const newCourse = await addCourse(mockCourseData, "Sample Course");
+    if (newCourse) {
+      toast({
+        title: "Sample course added",
+        description: `Created profile for ${newCourse.name}`,
+      });
+    }
   };
 
   const handleDeleteCourse = (courseId: string, courseName: string) => {

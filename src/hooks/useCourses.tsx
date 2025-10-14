@@ -1,5 +1,9 @@
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 import { CourseData } from '@/types/course';
+import { supabase } from '@/integrations/supabase/client';
+import type { Json } from '@/integrations/supabase/types';
+import { useAuth } from './useAuth';
+import { useToast } from './use-toast';
 
 export interface Course {
   id: string;
@@ -13,9 +17,9 @@ export interface Course {
 
 interface CoursesContextType {
   courses: Course[];
-  addCourse: (courseData: CourseData, fileName: string) => Course;
-  updateCourse: (id: string, courseData: CourseData) => void;
-  deleteCourse: (id: string) => void;
+  addCourse: (courseData: CourseData, fileName: string) => Promise<Course | undefined>;
+  updateCourse: (id: string, courseData: CourseData) => Promise<void>;
+  deleteCourse: (id: string) => Promise<void>;
   getCourse: (id: string) => Course | undefined;
 }
 
@@ -23,40 +27,121 @@ const CoursesContext = createContext<CoursesContextType | undefined>(undefined);
 
 export const CoursesProvider = ({ children }: { children: ReactNode }) => {
   const [courses, setCourses] = useState<Course[]>([]);
+  const { user } = useAuth();
+  const { toast } = useToast();
 
-  // Load courses from localStorage on mount
+  // Load courses from Supabase when user is authenticated
   useEffect(() => {
-    const savedCourses = localStorage.getItem('syllabus-courses');
-    if (savedCourses) {
-      try {
-        setCourses(JSON.parse(savedCourses));
-      } catch (error) {
-        console.error('Error loading courses from localStorage:', error);
-      }
+    if (user) {
+      loadCourses();
+    } else {
+      setCourses([]);
     }
-  }, []);
+  }, [user]);
 
-  // Save courses to localStorage whenever courses change
-  useEffect(() => {
-    localStorage.setItem('syllabus-courses', JSON.stringify(courses));
-  }, [courses]);
+  const loadCourses = async () => {
+    if (!user) return;
 
-  const addCourse = (courseData: CourseData, fileName: string): Course => {
-    const newCourse: Course = {
-      id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-      name: courseData.course.title || fileName.replace(/\.[^/.]+$/, ""),
-      code: courseData.course.code || '',
-      semester: courseData.course.semester || '',
-      data: courseData,
-      createdAt: new Date().toISOString(),
-      lastModified: new Date().toISOString(),
-    };
+    const { data, error } = await supabase
+      .from('courses')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('last_modified', { ascending: false });
 
-    setCourses(prev => [newCourse, ...prev]);
-    return newCourse;
+    if (error) {
+      console.error('Error loading courses:', error);
+      toast({
+        title: "Error loading courses",
+        description: error.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (data) {
+      setCourses(data.map(course => ({
+        id: course.id,
+        name: course.name,
+        code: course.code,
+        semester: course.semester,
+        data: course.data as unknown as CourseData,
+        createdAt: course.created_at,
+        lastModified: course.last_modified,
+      })));
+    }
   };
 
-  const updateCourse = (id: string, courseData: CourseData) => {
+  const addCourse = async (courseData: CourseData, fileName: string): Promise<Course | undefined> => {
+    if (!user) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to add courses",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from('courses')
+      .insert({
+        user_id: user.id,
+        name: courseData.course.title || fileName.replace(/\.[^/.]+$/, ""),
+        code: courseData.course.code || '',
+        semester: courseData.course.semester || '',
+        data: courseData as unknown as Json,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error adding course:', error);
+      toast({
+        title: "Error adding course",
+        description: error.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (data) {
+      const newCourse: Course = {
+        id: data.id,
+        name: data.name,
+        code: data.code,
+        semester: data.semester,
+        data: data.data as unknown as CourseData,
+        createdAt: data.created_at,
+        lastModified: data.last_modified,
+      };
+      setCourses(prev => [newCourse, ...prev]);
+      return newCourse;
+    }
+  };
+
+  const updateCourse = async (id: string, courseData: CourseData) => {
+    if (!user) return;
+
+    const { error } = await supabase
+      .from('courses')
+      .update({
+        name: courseData.course.title,
+        code: courseData.course.code,
+        semester: courseData.course.semester,
+        data: courseData as unknown as Json,
+      })
+      .eq('id', id)
+      .eq('user_id', user.id);
+
+    if (error) {
+      console.error('Error updating course:', error);
+      toast({
+        title: "Error updating course",
+        description: error.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
     setCourses(prev => 
       prev.map(course => 
         course.id === id 
@@ -73,7 +158,25 @@ export const CoursesProvider = ({ children }: { children: ReactNode }) => {
     );
   };
 
-  const deleteCourse = (id: string) => {
+  const deleteCourse = async (id: string) => {
+    if (!user) return;
+
+    const { error } = await supabase
+      .from('courses')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', user.id);
+
+    if (error) {
+      console.error('Error deleting course:', error);
+      toast({
+        title: "Error deleting course",
+        description: error.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
     setCourses(prev => prev.filter(course => course.id !== id));
   };
 

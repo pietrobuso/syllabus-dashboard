@@ -1,15 +1,33 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useCourses } from "@/hooks/useCourses";
-import { BookOpen, Upload, FolderOpen, Calendar, BarChart3, Calculator, Users } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { BookOpen, Upload, FolderOpen, Calendar, BarChart3, Calculator, Users, LogOut } from "lucide-react";
 
 const Index = () => {
   const { courses } = useCourses();
+  const { user, signOut } = useAuth();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/10 to-muted/20">
       <div className="container mx-auto px-6 py-16">
         <div className="max-w-5xl mx-auto">
+          {/* Auth Section */}
+          <div className="flex justify-end mb-8">
+            {user ? (
+              <Button variant="outline" onClick={signOut} className="shadow-medium">
+                <LogOut className="w-4 h-4 mr-2" />
+                Sign Out
+              </Button>
+            ) : (
+              <Link to="/auth">
+                <Button className="shadow-medium">
+                  Sign In
+                </Button>
+              </Link>
+            )}
+          </div>
+
           {/* Hero Section */}
           <div className="text-center mb-20">
             <div className="w-24 h-24 bg-gradient-hero rounded-3xl mx-auto mb-8 flex items-center justify-center shadow-strong ring-1 ring-primary/20">
@@ -26,13 +44,13 @@ const Index = () => {
 
           {/* Action Buttons */}
           <div className="flex flex-col sm:flex-row gap-6 justify-center mb-24">
-            <Link to="/courses">
+            <Link to={user ? "/courses" : "/auth"}>
               <Button size="lg" className="shadow-medium hover:shadow-strong transition-all duration-300 min-w-[220px] h-14 text-lg font-medium bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary">
                 <Upload className="w-6 h-6 mr-3" />
                 Upload Syllabus
               </Button>
             </Link>
-            {courses.length > 0 && (
+            {user && courses.length > 0 && (
               <>
                 <Link to="/courses">
                   <Button variant="outline" size="lg" className="shadow-medium hover:shadow-strong transition-all duration-300 min-w-[220px] h-14 text-lg font-medium border-2 hover:bg-muted/50">
