@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { SUPABASE_URL, getFunctionHeaders } from '@/integrations/supabase/config';
 import { CourseData } from '@/types/course';
 
 export interface AnalyzedDocument {
@@ -9,10 +10,31 @@ export interface AnalyzedDocument {
 
 export const analyzeDocumentWithAI = async (documentText: string): Promise<AnalyzedDocument> => {
   try {
-    // Call Lovable AI backend for analysis
-    const { data, error } = await supabase.functions.invoke('analyze-syllabus', {
-      body: { documentText }
-    });
+    // Try using Supabase SDK first
+    let data, error;
+    
+    try {
+      const response = await supabase.functions.invoke('analyze-syllabus', {
+        body: { documentText }
+      });
+      data = response.data;
+      error = response.error;
+    } catch (sdkError) {
+      console.log('Supabase SDK failed, trying direct fetch:', sdkError);
+      
+      // Fallback to direct fetch with explicit headers (works in incognito)
+      const fetchResponse = await fetch(`${SUPABASE_URL}/functions/v1/analyze-syllabus`, {
+        method: 'POST',
+        headers: getFunctionHeaders(),
+        body: JSON.stringify({ documentText })
+      });
+      
+      if (!fetchResponse.ok) {
+        throw new Error(`HTTP ${fetchResponse.status}: ${await fetchResponse.text()}`);
+      }
+      
+      data = await fetchResponse.json();
+    }
 
     if (error) {
       console.error('Supabase function error:', error);
