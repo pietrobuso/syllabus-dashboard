@@ -15,13 +15,14 @@ export const DocumentUpload = ({ onUpload, isProcessing = false }: DocumentUploa
   const { toast } = useToast();
 
   const handleFileSelect = (file: File) => {
-    const allowedTypes = [
+    // Validate file type
+    const allowedTypes = new Set([
       'application/pdf',
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       'application/msword'
-    ];
+    ]);
     
-    if (!allowedTypes.includes(file.type)) {
+    if (!allowedTypes.has(file.type)) {
       toast({
         title: "Invalid file type",
         description: "Please upload a PDF or Word document",
@@ -30,7 +31,9 @@ export const DocumentUpload = ({ onUpload, isProcessing = false }: DocumentUploa
       return;
     }
 
-    if (file.size > 20 * 1024 * 1024) { // 20MB limit
+    // Validate file size (20MB limit)
+    const MAX_SIZE = 20 * 1024 * 1024;
+    if (file.size > MAX_SIZE) {
       toast({
         title: "File too large", 
         description: "Please upload a file smaller than 20MB",

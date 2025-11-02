@@ -59,7 +59,8 @@ export const CoursesProvider = ({ children }: { children: ReactNode }) => {
     }
 
     if (data) {
-      setCourses(data.map(course => ({
+      // Transform once, avoiding redundant spreads
+      const transformed = data.map(course => ({
         id: course.id,
         name: course.name,
         code: course.code,
@@ -67,7 +68,8 @@ export const CoursesProvider = ({ children }: { children: ReactNode }) => {
         data: course.data as unknown as CourseData,
         createdAt: course.created_at,
         lastModified: course.last_modified,
-      })));
+      }));
+      setCourses(transformed);
     }
   };
 
@@ -142,16 +144,18 @@ export const CoursesProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
 
+    // Optimized update: only update if match found
+    const now = new Date().toISOString();
     setCourses(prev => 
       prev.map(course => 
         course.id === id 
           ? { 
               ...course, 
               data: courseData,
-              name: courseData.course.title || course.name,
-              code: courseData.course.code || course.code,
-              semester: courseData.course.semester || course.semester,
-              lastModified: new Date().toISOString() 
+              name: courseData.course.title,
+              code: courseData.course.code,
+              semester: courseData.course.semester,
+              lastModified: now
             }
           : course
       )

@@ -47,40 +47,26 @@ export const analyzeDocumentWithAI = async (documentText: string): Promise<Analy
   }
 };
 
+/**
+ * Creates fallback course data when AI analysis fails.
+ * Uses basic regex patterns to extract minimal information from the document text.
+ */
 const createFallbackData = (text: string): CourseData => {
-  // Basic regex-based extraction as fallback
-  const lines = text.split('\n').filter(line => line.trim());
-  const lowerText = text.toLowerCase();
-
-  // Extract course title (first significant line or from patterns)
-  let title = "Course Title";
   const titleMatch = text.match(/([A-Z][A-Za-z\s]{10,60})/);
-  if (titleMatch) {
-    title = titleMatch[1].trim();
-  }
-
-  // Extract course code
-  let code = "";
   const codeMatch = text.match(/([A-Z]{2,4}\s*\d{3,4}[A-Z]?)/);
-  if (codeMatch) {
-    code = codeMatch[1].trim();
-  }
-
-  // Extract semester
-  let semester = "Fall 2024";
   const semesterMatch = text.match(/(spring|fall|summer|winter)\s*(\d{4})/i);
-  if (semesterMatch) {
-    semester = `${semesterMatch[1]} ${semesterMatch[2]}`;
-  }
-
-  // Extract email for instructor
   const emailMatch = text.match(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/);
   
   return {
-    course: { title, code, semester, institution: "" },
+    course: { 
+      title: titleMatch?.[1]?.trim() || "Course Title",
+      code: codeMatch?.[1]?.trim() || "",
+      semester: semesterMatch ? `${semesterMatch[1]} ${semesterMatch[2]}` : "Fall 2024",
+      institution: ""
+    },
     instructors: [{
       name: "Instructor",
-      email: emailMatch ? emailMatch[0] : "",
+      email: emailMatch?.[0] || "",
       office_hours: "",
       location: "",
       role: "professor" as const
@@ -90,39 +76,54 @@ const createFallbackData = (text: string): CourseData => {
       { component: "Exams", weight: 0.4, description: "Midterm and final exams" },
       { component: "Participation", weight: 0.2, description: "Class participation" }
     ],
-    schedule: [
-      {
-        date: "2024-09-01",
-        week: 1,
-        topic: "Course Introduction",
-        activities: ["lecture" as const],
-        deliverables: [],
-        readings: []
-      }
-    ],
+    schedule: [{
+      date: "2024-09-01",
+      week: 1,
+      topic: "Course Introduction",
+      activities: ["lecture" as const],
+      deliverables: [],
+      readings: []
+    }],
     policies: {
       late_work: "",
       attendance: "",
       honor_code: ""
     },
     important_dates: [
-      {
-        name: "Midterm Exam",
-        date: "2024-10-15",
-        type: "exam" as const
-      },
-      {
-        name: "Final Exam",
-        date: "2024-12-10",
-        type: "exam" as const
-      }
+      { name: "Midterm Exam", date: "2024-10-15", type: "exam" as const },
+      { name: "Final Exam", date: "2024-12-10", type: "exam" as const }
     ]
   };
 };
 
+/**
+ * Validates and normalizes AI-extracted data to ensure type safety and completeness.
+ * Provides sensible defaults for missing or invalid fields.
+ */
 const validateAndCleanData = (data: any): CourseData => {
-  // Ensure required structure exists
-  const cleanData: CourseData = {
+  const DEFAULT_GRADING = [
+    { component: "Assignments", weight: 0.4, description: "Regular assignments" },
+    { component: "Exams", weight: 0.4, description: "Midterm and final exams" },
+    { component: "Participation", weight: 0.2, description: "Class participation" }
+  ];
+
+  const DEFAULT_SCHEDULE = [{
+    date: "2024-09-01",
+    week: 1,
+    topic: "Course Introduction",
+    activities: ["lecture" as const],
+    deliverables: [],
+    readings: []
+  }];
+
+  const DEFAULT_DATES = [
+    { name: "Midterm Exam", date: "2024-10-15", type: "exam" as const },
+    { name: "Final Exam", date: "2024-12-10", type: "exam" as const }
+  ];
+
+  const VALID_DATE_TYPES = new Set(["exam", "deadline", "quiz", "project", "break", "other"]);
+
+  return {
     course: {
       title: data.course?.title || "Course Title",
       code: data.course?.code || "",
@@ -135,26 +136,16 @@ const validateAndCleanData = (data: any): CourseData => {
           email: inst.email || "",
           office_hours: inst.office_hours || "",
           location: inst.location || "",
-          role: (inst.role === "ta" ? "ta" : "professor") as "professor" | "ta"
+          role: inst.role === "ta" ? "ta" : "professor"
         }))
-      : [{
-          name: "Instructor",
-          email: "",
-          office_hours: "",
-          location: "",
-          role: "professor" as const
-        }],
+      : [{ name: "Instructor", email: "", office_hours: "", location: "", role: "professor" as const }],
     grading: Array.isArray(data.grading) && data.grading.length > 0
       ? data.grading.map((grade: any) => ({
           component: grade.component || "Component",
           weight: typeof grade.weight === 'number' ? grade.weight : 0.2,
           description: grade.description || ""
         }))
-      : [
-          { component: "Assignments", weight: 0.4, description: "Regular assignments" },
-          { component: "Exams", weight: 0.4, description: "Midterm and final exams" },
-          { component: "Participation", weight: 0.2, description: "Class participation" }
-        ],
+      : DEFAULT_GRADING,
     schedule: Array.isArray(data.schedule) && data.schedule.length > 0
       ? data.schedule.map((item: any) => ({
           date: item.date || "",
@@ -164,14 +155,7 @@ const validateAndCleanData = (data: any): CourseData => {
           deliverables: Array.isArray(item.deliverables) ? item.deliverables : [],
           readings: Array.isArray(item.readings) ? item.readings : []
         }))
-      : [{
-          date: "2024-09-01",
-          week: 1,
-          topic: "Course Introduction",
-          activities: ["lecture"],
-          deliverables: [],
-          readings: []
-        }],
+      : DEFAULT_SCHEDULE,
     policies: {
       late_work: data.policies?.late_work || "",
       attendance: data.policies?.attendance || "",
@@ -181,15 +165,8 @@ const validateAndCleanData = (data: any): CourseData => {
       ? data.important_dates.map((item: any) => ({
           name: item.name || "Important Date",
           date: item.date || "",
-          type: (["exam", "deadline", "quiz", "project", "break", "other"].includes(item.type)) 
-            ? item.type 
-            : "deadline"
+          type: VALID_DATE_TYPES.has(item.type) ? item.type : "deadline"
         }))
-      : [
-          { name: "Midterm Exam", date: "2024-10-15", type: "exam" },
-          { name: "Final Exam", date: "2024-12-10", type: "exam" }
-        ]
+      : DEFAULT_DATES
   };
-
-  return cleanData;
 };

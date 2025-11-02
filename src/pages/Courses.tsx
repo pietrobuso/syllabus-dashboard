@@ -26,41 +26,37 @@ const Courses = () => {
     setIsUploading(true);
 
     try {
-      // 1) Extract raw text from file (PDF/DOCX)
+      // Extract text and analyze with AI (Gemini 2.5 Flash)
       const parsedDoc = await extractTextFromFile(file);
-
-      // 2) Use AI to analyze and extract structured data
       const aiResult = await analyzeDocumentWithAI(parsedDoc.content);
 
-      // Set up extracted data for editing
-      setExtractedData({
-        ...aiResult.extractedData,
-        course: {
-          ...aiResult.extractedData.course,
-          title: aiResult.extractedData.course.title || file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, ' ')
-        }
-      });
+      // Ensure title fallback without redundant spread
+      const extracted = aiResult.extractedData;
+      if (!extracted.course.title) {
+        extracted.course.title = file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, ' ');
+      }
+
+      setExtractedData(extracted);
       setShowEditor(true);
 
-      // Show success toast with confidence level and extraction details
+      // Success notification with metrics
+      const confidencePercent = Math.round(aiResult.confidence * 100);
       toast({
         title: "Document analyzed successfully!",
-        description: `AI confidence: ${Math.round(aiResult.confidence * 100)}%. Found ${aiResult.extractedData.schedule.length} schedule items and ${aiResult.extractedData.important_dates.length} important dates.`,
+        description: `AI confidence: ${confidencePercent}%. Found ${extracted.schedule.length} schedule items and ${extracted.important_dates.length} important dates.`,
       });
 
-      // Log extraction details for debugging
       console.log("AI Analysis Results:", {
         confidence: aiResult.confidence,
-        scheduleItems: aiResult.extractedData.schedule.length,
-        importantDates: aiResult.extractedData.important_dates.length,
+        scheduleItems: extracted.schedule.length,
+        importantDates: extracted.important_dates.length,
         extractionLog: aiResult.extractionLog
       });
     } catch (err) {
-      console.error(err);
-      const msg = err instanceof Error ? err.message : 'There was an error processing your document.';
+      console.error('Upload error:', err);
       toast({
         title: "Upload failed",
-        description: msg,
+        description: err instanceof Error ? err.message : 'Error processing document.',
         variant: "destructive"
       });
     } finally {
