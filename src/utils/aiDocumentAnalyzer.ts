@@ -1,4 +1,4 @@
-import { supabase } from '@/integrations/supabase/client';
+import { SUPABASE_URL, getSupabaseServiceHeaders } from '@/integrations/supabase/config';
 import { CourseData } from '@/types/course';
 
 export interface AnalyzedDocument {
@@ -9,23 +9,26 @@ export interface AnalyzedDocument {
 
 export const analyzeDocumentWithAI = async (documentText: string): Promise<AnalyzedDocument> => {
   try {
-    // Call Lovable AI backend for analysis
-    const { data, error } = await supabase.functions.invoke('analyze-syllabus', {
-      body: { documentText }
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/analyze-syllabus`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getSupabaseServiceHeaders(),
+      },
+      body: JSON.stringify({ documentText })
     });
 
-    if (error) {
-      console.error('Supabase function error:', error);
-      throw error;
-    }
+    const data = await response.json();
 
-    if (!data || data.error) {
-      throw new Error(data?.error || 'Analysis failed');
+    if (!response.ok) {
+      const errorMessage = data?.error || 'Analysis failed';
+      console.error('Supabase function error:', errorMessage);
+      throw new Error(errorMessage);
     }
 
     // Validate and clean the extracted data
     const cleanedData = validateAndCleanData(data.extractedData);
-    
+
     return {
       extractedData: cleanedData,
       confidence: data.confidence || 0.9,
