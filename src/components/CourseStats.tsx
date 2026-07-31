@@ -3,15 +3,22 @@ import { Badge } from "@/components/ui/badge";
 import { CourseData } from "@/types/course";
 import { Calendar, Clock, GraduationCap, Users } from "lucide-react";
 import { format, parseISO, isAfter, startOfDay, isSameDay } from "date-fns";
+import { nextOccurrence } from "@/utils/meetingTimes";
 
 interface CourseStatsProps {
   courseData: CourseData;
 }
 
+interface NextClassInfo {
+  topic: string;
+  date: Date;
+  isRecurring: boolean;
+}
+
 export const CourseStats = ({ courseData }: CourseStatsProps) => {
   const today = new Date();
-  
-  // Find next class (today or future)
+
+  // Find next dated class (today or future)
   const upcomingClasses = courseData.schedule
     .filter(item => {
       try {
@@ -23,8 +30,33 @@ export const CourseStats = ({ courseData }: CourseStatsProps) => {
     })
     .sort((a, b) => parseISO(a.date).getTime() - parseISO(b.date).getTime());
 
-  const nextClass = upcomingClasses[0];
-  
+  const nextScheduledClass = upcomingClasses[0];
+
+  // Find the soonest occurrence of a recurring weekly meeting time
+  const nextMeetingOccurrence = courseData.meeting_times
+    .map(meeting => ({ meeting, date: nextOccurrence(meeting, today) }))
+    .filter((entry): entry is { meeting: typeof courseData.meeting_times[number]; date: Date } => entry.date !== null)
+    .sort((a, b) => a.date.getTime() - b.date.getTime())[0];
+
+  // "Next class" is whichever of the two is sooner - a dated schedule entry
+  // or the next occurrence of a recurring meeting time.
+  const nextClassCandidates: NextClassInfo[] = [];
+  if (nextScheduledClass) {
+    try {
+      nextClassCandidates.push({ topic: nextScheduledClass.topic, date: parseISO(nextScheduledClass.date), isRecurring: false });
+    } catch {
+      // Skip invalid date
+    }
+  }
+  if (nextMeetingOccurrence) {
+    nextClassCandidates.push({
+      topic: nextMeetingOccurrence.meeting.label || `${courseData.course.code || courseData.course.title || "Class"}`,
+      date: nextMeetingOccurrence.date,
+      isRecurring: true
+    });
+  }
+  const nextClass = nextClassCandidates.sort((a, b) => a.date.getTime() - b.date.getTime())[0];
+
   // Find next deliverable
   const allDeliverables = courseData.schedule
     .flatMap(item => item.deliverables.map(deliverable => ({
@@ -59,6 +91,9 @@ export const CourseStats = ({ courseData }: CourseStatsProps) => {
       return dateString;
     }
   };
+
+  const formatNextClass = (info: NextClassInfo) =>
+    info.isRecurring ? format(info.date, "EEE, h:mm a") : format(info.date, "MMM dd");
 
   const StatCard = ({ 
     icon: Icon, 
@@ -115,7 +150,7 @@ export const CourseStats = ({ courseData }: CourseStatsProps) => {
           icon={Calendar}
           title="Next Class"
           value={nextClass ? nextClass.topic : "No upcoming classes"}
-          subtitle={nextClass ? formatDateShort(nextClass.date) : undefined}
+          subtitle={nextClass ? formatNextClass(nextClass) : undefined}
         />
         
         <StatCard
@@ -155,7 +190,7 @@ export const CourseStats = ({ courseData }: CourseStatsProps) => {
                     <Calendar className="w-4 h-4 text-primary" />
                     <span className="font-medium">{nextClass.topic}</span>
                   </div>
-                  <Badge variant="secondary">{formatDateShort(nextClass.date)}</Badge>
+                  <Badge variant="secondary">{formatNextClass(nextClass)}</Badge>
                 </div>
               )}
               

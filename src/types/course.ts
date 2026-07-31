@@ -38,11 +38,29 @@ export interface ScheduleItem {
 
 export type ActivityType = 'quiz' | 'exam' | 'assignment' | 'monitored' | 'lecture' | 'lab';
 
+export interface ContentUnit {
+  title: string;
+  description?: string;
+  topics?: string[];
+  readings?: string[];
+}
+
+export type DayOfWeek = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
+
+export interface MeetingTime {
+  day: DayOfWeek;
+  start_time: string; // 24h "HH:MM"
+  end_time: string; // 24h "HH:MM"
+  label?: string; // e.g. "Lecture", "Lab", "Discussion Section"
+}
+
 export interface CourseData {
   course: Course;
   instructors: Instructor[];
   grading: GradingComponent[];
   schedule: ScheduleItem[];
+  content: ContentUnit[];
+  meeting_times: MeetingTime[];
   policies: {
     late_work: string;
     attendance: string;

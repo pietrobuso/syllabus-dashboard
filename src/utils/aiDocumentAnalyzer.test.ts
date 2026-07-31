@@ -10,6 +10,8 @@ describe("validateAndCleanData", () => {
     expect(result.instructors).toEqual([]);
     expect(result.grading).toEqual([]);
     expect(result.schedule).toEqual([]);
+    expect(result.content).toEqual([]);
+    expect(result.meeting_times).toEqual([]);
     expect(result.important_dates).toEqual([]);
   });
 
@@ -70,5 +72,34 @@ describe("validateAndCleanData", () => {
     });
 
     expect(result.important_dates.map((d) => d.type)).toEqual(["quiz", "project"]);
+  });
+
+  it("keeps content units with a title and drops ones without", () => {
+    const result = validateAndCleanData({
+      content: [
+        { title: "Unit 1: Functions", topics: ["Recursion", ""], readings: ["Ch. 3"] },
+        { description: "no title, should be dropped" },
+      ],
+    });
+
+    expect(result.content).toEqual([
+      { title: "Unit 1: Functions", description: "", topics: ["Recursion"], readings: ["Ch. 3"] },
+    ]);
+  });
+
+  it("keeps only meeting_times with a valid day and HH:MM start/end times", () => {
+    const result = validateAndCleanData({
+      meeting_times: [
+        { day: "monday", start_time: "14:00", end_time: "15:20", label: "Lecture" },
+        { day: "someday", start_time: "14:00", end_time: "15:20" },
+        { day: "tuesday", start_time: "2pm", end_time: "3pm" },
+        { day: "friday", start_time: "10:00", end_time: "10:50" },
+      ],
+    });
+
+    expect(result.meeting_times).toEqual([
+      { day: "monday", start_time: "14:00", end_time: "15:20", label: "Lecture" },
+      { day: "friday", start_time: "10:00", end_time: "10:50", label: "" },
+    ]);
   });
 });

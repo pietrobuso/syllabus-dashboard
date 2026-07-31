@@ -17,6 +17,10 @@ Your expertise allows you to:
 - Parse complex weekly schedules with lectures, labs, discussions, and office hours
 - Spot critical dates buried in text (drop deadlines, exam dates, project milestones)
 - Understand academic policies in context (late penalties, attendance rules, academic integrity)
+- Tell apart three DIFFERENT things syllabi often mix together, and route each to its own field:
+  1. "schedule" = a week-by-week or date-by-date calendar (each entry tied to a specific week/date).
+  2. "content" = a topic/unit outline with NO week or date attached (e.g. "Unit 1: Functions", "Module 3: Thermodynamics", a numbered list of topics/readings that isn't mapped onto specific weeks). If you cannot point to a specific date or week number for an entry, it belongs in "content", not "schedule" - do not invent a date or week number just to force it into "schedule".
+  3. "meeting_times" = the recurring day-of-week/time pattern the class regularly meets (e.g. "Lectures MWF 10:00-10:50am", "Discussion section Tuesdays 3-4pm"). This is a weekly recurring pattern, not a dated event - it also does not belong in "schedule".
 
 When analyzing this syllabus:
 - Think like a professor organizing a course dashboard for students
@@ -165,6 +169,61 @@ const EXTRACT_SYLLABUS_FUNCTION = {
             }
           },
           required: ["week", "topic"]
+        }
+      },
+      content: {
+        type: "ARRAY",
+        description: "Topic/unit outline that is NOT organized by week or date - e.g. a numbered list of units/modules/topics the syllabus presents on its own, separate from the dated weekly schedule. Only use this when the document actually presents such an outline; leave it empty otherwise. Do not duplicate entries that already have a date/week in 'schedule'.",
+        items: {
+          type: "OBJECT",
+          properties: {
+            title: {
+              type: "STRING",
+              description: "Name of this unit/topic/module exactly as the syllabus labels it (e.g. 'Unit 1: Functions', 'Module 3: Thermodynamics')."
+            },
+            description: {
+              type: "STRING",
+              description: "One or two sentences describing what this unit covers, only if the syllabus actually says so. Leave empty if not stated."
+            },
+            topics: {
+              type: "ARRAY",
+              items: { type: "STRING" },
+              description: "Sub-topics listed under this unit, exactly as written (e.g. 'Recursion', 'Higher-order functions')."
+            },
+            readings: {
+              type: "ARRAY",
+              items: { type: "STRING" },
+              description: "Readings associated with this unit (chapters, articles, pages), if stated."
+            }
+          },
+          required: ["title"]
+        }
+      },
+      meeting_times: {
+        type: "ARRAY",
+        description: "The recurring day-of-week/time pattern this class regularly meets, e.g. 'Lectures MWF 10:00-10:50am' or 'Discussion section Tuesdays 3-4pm'. One entry per weekday the class meets (so 'MWF 10:00-10:50am' becomes three entries: monday, wednesday, friday). Only include a meeting time if the syllabus explicitly states a recurring day and time - never guess one.",
+        items: {
+          type: "OBJECT",
+          properties: {
+            day: {
+              type: "STRING",
+              enum: ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"],
+              description: "Day of the week this recurring meeting happens."
+            },
+            start_time: {
+              type: "STRING",
+              description: "Start time in 24-hour HH:MM format (e.g. '14:00' for 2:00pm). Convert from whatever format the syllabus uses."
+            },
+            end_time: {
+              type: "STRING",
+              description: "End time in 24-hour HH:MM format (e.g. '15:20' for 3:20pm)."
+            },
+            label: {
+              type: "STRING",
+              description: "What kind of meeting this is, if stated (e.g. 'Lecture', 'Lab', 'Discussion Section'). Leave empty if the syllabus doesn't distinguish."
+            }
+          },
+          required: ["day", "start_time", "end_time"]
         }
       },
       important_dates: {

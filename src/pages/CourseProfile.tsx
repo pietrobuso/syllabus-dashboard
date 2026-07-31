@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useParams, Link, Navigate } from "react-router-dom";
 import { CourseStats } from "@/components/CourseStats";
 import { ScheduleView } from "@/components/ScheduleView";
+import { CourseContent } from "@/components/CourseContent";
+import { MeetingTimesCard } from "@/components/MeetingTimesCard";
 import { GradeBreakdown } from "@/components/GradeBreakdown";
 import { GradeCalculator } from "@/components/GradeCalculator";
 import { ContactInfo } from "@/components/ContactInfo";
@@ -10,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCourses } from "@/hooks/useCourses";
 import { useToast } from "@/hooks/use-toast";
-import { FileText, Calendar, BarChart3, Calculator, Users, ArrowLeft, Edit3 } from "lucide-react";
+import { FileText, Calendar, BarChart3, Calculator, Users, ArrowLeft, Edit3, Layers } from "lucide-react";
 import { CourseData } from "@/types/course";
 
 const CourseProfile = () => {
@@ -97,10 +99,14 @@ const CourseProfile = () => {
 
           {/* Main Dashboard Tabs */}
           <Tabs defaultValue="schedule" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-2 md:grid-cols-5 h-auto p-1 bg-muted/50">
+            <TabsList className="grid w-full grid-cols-2 md:grid-cols-6 h-auto p-1 bg-muted/50">
               <TabsTrigger value="schedule" className="flex items-center gap-2 py-3">
                 <Calendar className="w-4 h-4" />
                 <span className="hidden sm:inline">Schedule</span>
+              </TabsTrigger>
+              <TabsTrigger value="content" className="flex items-center gap-2 py-3">
+                <Layers className="w-4 h-4" />
+                <span className="hidden sm:inline">Content</span>
               </TabsTrigger>
               <TabsTrigger value="grades" className="flex items-center gap-2 py-3">
                 <BarChart3 className="w-4 h-4" />
@@ -121,7 +127,12 @@ const CourseProfile = () => {
             </TabsList>
 
             <TabsContent value="schedule" className="space-y-6">
+              <MeetingTimesCard meetingTimes={courseData.meeting_times} />
               <ScheduleView schedule={courseData.schedule} />
+            </TabsContent>
+
+            <TabsContent value="content" className="space-y-6">
+              <CourseContent content={courseData.content} />
             </TabsContent>
 
             <TabsContent value="grades" className="space-y-6">

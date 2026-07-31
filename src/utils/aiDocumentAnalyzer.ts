@@ -94,6 +94,8 @@ const createFallbackData = (text: string): CourseData => {
     }] : [],
     grading: [],
     schedule: [],
+    content: [],
+    meeting_times: [],
     policies: {
       late_work: "",
       attendance: "",
@@ -106,6 +108,8 @@ const createFallbackData = (text: string): CourseData => {
 const VALID_DATE_TYPES = new Set(["exam", "deadline", "quiz", "project", "break", "other"]);
 const VALID_ACTIVITY_TYPES = new Set(["lecture", "lab", "quiz", "exam", "assignment", "monitored"]);
 const VALID_DELIVERABLE_TYPES = new Set(["assignment", "quiz", "exam", "project"]);
+const VALID_DAYS = new Set(["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]);
+const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 /**
  * Validates and normalizes AI-extracted data to ensure type safety.
@@ -163,6 +167,26 @@ export const validateAndCleanData = (data: any): CourseData => {
                   }))
               : [],
             readings: Array.isArray(item.readings) ? item.readings.filter(Boolean) : []
+          }))
+      : [],
+    content: Array.isArray(data.content)
+      ? data.content
+          .filter((unit: any) => unit?.title)
+          .map((unit: any) => ({
+            title: unit.title,
+            description: unit.description || "",
+            topics: Array.isArray(unit.topics) ? unit.topics.filter(Boolean) : [],
+            readings: Array.isArray(unit.readings) ? unit.readings.filter(Boolean) : []
+          }))
+      : [],
+    meeting_times: Array.isArray(data.meeting_times)
+      ? data.meeting_times
+          .filter((m: any) => VALID_DAYS.has(m?.day) && TIME_PATTERN.test(m?.start_time) && TIME_PATTERN.test(m?.end_time))
+          .map((m: any) => ({
+            day: m.day,
+            start_time: m.start_time,
+            end_time: m.end_time,
+            label: m.label || ""
           }))
       : [],
     policies: {

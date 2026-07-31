@@ -97,6 +97,25 @@ export const mockCourseData: CourseData = {
       ]
     }
   ],
+  content: [
+    {
+      title: "Unit 1: Foundations",
+      description: "Mathematical foundations underlying most ML methods.",
+      topics: ["Linear algebra review", "Probability review", "Supervised vs. unsupervised learning"],
+      readings: ["Chapter 1-2 of textbook"]
+    },
+    {
+      title: "Unit 2: Supervised Learning",
+      description: "Regression and classification methods.",
+      topics: ["Linear regression", "Logistic regression", "Neural networks"],
+      readings: ["Chapter 3-5 of textbook"]
+    }
+  ],
+  meeting_times: [
+    { day: "monday", start_time: "14:00", end_time: "15:20", label: "Lecture" },
+    { day: "wednesday", start_time: "14:00", end_time: "15:20", label: "Lecture" },
+    { day: "friday", start_time: "10:00", end_time: "10:50", label: "Discussion Section" }
+  ],
   policies: {
     late_work: "Late assignments will be penalized 10% per day. No late work accepted after 3 days.",
     attendance: "Attendance is mandatory. More than 2 unexcused absences may result in grade reduction.",
