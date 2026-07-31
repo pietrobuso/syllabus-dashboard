@@ -51,6 +51,6 @@ export interface CourseData {
   important_dates: {
     name: string;
     date: string;
-    type: 'exam' | 'deadline' | 'break' | 'other';
+    type: 'exam' | 'deadline' | 'quiz' | 'project' | 'break' | 'other';
   }[];
 }
