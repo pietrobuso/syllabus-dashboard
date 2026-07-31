@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { CourseData } from '@/types/course';
 import { supabase } from '@/integrations/supabase/client';
 import type { Json } from '@/integrations/supabase/types';
+import { normalizeCourseData } from '@/utils/normalizeCourseData';
 import { useAuth } from './useAuth';
 import { useToast } from './use-toast';
 
@@ -51,7 +52,7 @@ export const CoursesProvider = ({ children }: { children: ReactNode }) => {
         name: course.name,
         code: course.code,
         semester: course.semester,
-        data: course.data as unknown as CourseData,
+        data: normalizeCourseData(course.data),
         createdAt: course.created_at,
         lastModified: course.last_modified,
       }));
@@ -82,7 +83,7 @@ export const CoursesProvider = ({ children }: { children: ReactNode }) => {
         name: data.name,
         code: data.code,
         semester: data.semester,
-        data: data.data as unknown as CourseData,
+        data: normalizeCourseData(data.data),
         createdAt: data.created_at,
         lastModified: data.last_modified,
       };
