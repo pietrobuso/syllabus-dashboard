@@ -7,9 +7,16 @@ import { GlobalWorkerOptions, getDocument } from 'pdfjs-dist';
 // @ts-ignore
 import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?worker&url';
 import mammoth from 'mammoth';
-import type { ParsedDocument } from '@/utils/documentParser';
 
 GlobalWorkerOptions.workerSrc = pdfjsWorker as string;
+
+export interface ParsedDocument {
+  content: string;
+  pages: Array<{
+    page_number: number;
+    content: string;
+  }>;
+}
 
 const readFileAsArrayBuffer = (file: File): Promise<ArrayBuffer> =>
   new Promise((resolve, reject) => {
