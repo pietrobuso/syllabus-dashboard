@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { CourseData, GradingComponent, Instructor, ActivityType } from "@/types/course";
+import { CourseData, GradingComponent, Instructor, ActivityType, ContentUnit, MeetingTime, DayOfWeek } from "@/types/course";
 import { Plus, Trash2, Save, X, Calendar, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -118,6 +118,52 @@ export const CourseDataEditor = ({ initialData, onSave, onCancel }: CourseDataEd
       ...prev,
       schedule: prev.schedule.map((item, i) => 
         i === index ? { ...item, [field]: value } : item
+      )
+    }));
+  };
+
+  const addContentUnit = () => {
+    setCourseData(prev => ({
+      ...prev,
+      content: [...prev.content, { title: "", description: "", topics: [], readings: [] }]
+    }));
+  };
+
+  const removeContentUnit = (index: number) => {
+    setCourseData(prev => ({
+      ...prev,
+      content: prev.content.filter((_, i) => i !== index)
+    }));
+  };
+
+  const updateContentUnit = (index: number, field: keyof ContentUnit, value: string | string[]) => {
+    setCourseData(prev => ({
+      ...prev,
+      content: prev.content.map((unit, i) =>
+        i === index ? { ...unit, [field]: value } : unit
+      )
+    }));
+  };
+
+  const addMeetingTime = () => {
+    setCourseData(prev => ({
+      ...prev,
+      meeting_times: [...prev.meeting_times, { day: "monday" as DayOfWeek, start_time: "", end_time: "", label: "" }]
+    }));
+  };
+
+  const removeMeetingTime = (index: number) => {
+    setCourseData(prev => ({
+      ...prev,
+      meeting_times: prev.meeting_times.filter((_, i) => i !== index)
+    }));
+  };
+
+  const updateMeetingTime = (index: number, field: keyof MeetingTime, value: string) => {
+    setCourseData(prev => ({
+      ...prev,
+      meeting_times: prev.meeting_times.map((meeting, i) =>
+        i === index ? { ...meeting, [field]: value } : meeting
       )
     }));
   };
@@ -464,6 +510,157 @@ export const CourseDataEditor = ({ initialData, onSave, onCancel }: CourseDataEd
             <div className="text-center py-8 text-muted-foreground">
               <Calendar className="w-12 h-12 mx-auto mb-3 opacity-50" />
               <p>No schedule items yet. Add weeks to build your course schedule.</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Course Content (topic/unit outline without dates) */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Course Content</CardTitle>
+            <p className="text-sm text-muted-foreground mt-1">
+              Topics/units the syllabus lists without tying them to a specific week or date
+            </p>
+          </div>
+          <Button size="sm" onClick={addContentUnit}>
+            <Plus className="w-4 h-4 mr-2" />
+            Add Unit
+          </Button>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {courseData.content.map((unit, index) => (
+            <div key={index} className="p-4 border rounded-lg space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="font-medium">Unit {index + 1}</h4>
+                <Button size="sm" variant="ghost" onClick={() => removeContentUnit(index)}>
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </div>
+              <div>
+                <Label htmlFor={`content-title-${index}`}>Title</Label>
+                <Input
+                  id={`content-title-${index}`}
+                  value={unit.title}
+                  onChange={(e) => updateContentUnit(index, 'title', e.target.value)}
+                  placeholder="e.g., Unit 1: Functions"
+                />
+              </div>
+              <div>
+                <Label htmlFor={`content-desc-${index}`}>Description</Label>
+                <Input
+                  id={`content-desc-${index}`}
+                  value={unit.description || ''}
+                  onChange={(e) => updateContentUnit(index, 'description', e.target.value)}
+                  placeholder="Short description"
+                />
+              </div>
+              <div>
+                <Label htmlFor={`content-topics-${index}`}>Topics (comma-separated)</Label>
+                <Input
+                  id={`content-topics-${index}`}
+                  value={unit.topics?.join(', ') || ''}
+                  onChange={(e) => updateContentUnit(index, 'topics', e.target.value.split(',').map(t => t.trim()).filter(t => t))}
+                  placeholder="Recursion, Higher-order functions"
+                />
+              </div>
+              <div>
+                <Label htmlFor={`content-readings-${index}`}>Readings (comma-separated)</Label>
+                <Input
+                  id={`content-readings-${index}`}
+                  value={unit.readings?.join(', ') || ''}
+                  onChange={(e) => updateContentUnit(index, 'readings', e.target.value.split(',').map(r => r.trim()).filter(r => r))}
+                  placeholder="Chapter 3, pp. 40-55"
+                />
+              </div>
+            </div>
+          ))}
+          {courseData.content.length === 0 && (
+            <div className="text-center py-8 text-muted-foreground">
+              <p>No content units yet. Add one if your syllabus lists topics without specific dates.</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Weekly Meeting Times (recurring day/time pattern) */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Weekly Meeting Times</CardTitle>
+            <p className="text-sm text-muted-foreground mt-1">
+              The recurring day/time this class meets - used to figure out the next class when there's no dated schedule
+            </p>
+          </div>
+          <Button size="sm" onClick={addMeetingTime}>
+            <Plus className="w-4 h-4 mr-2" />
+            Add Meeting Time
+          </Button>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {courseData.meeting_times.map((meeting, index) => (
+            <div key={index} className="p-4 border rounded-lg space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="font-medium">Meeting {index + 1}</h4>
+                <Button size="sm" variant="ghost" onClick={() => removeMeetingTime(index)}>
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                <div>
+                  <Label htmlFor={`meeting-day-${index}`}>Day</Label>
+                  <Select
+                    value={meeting.day}
+                    onValueChange={(value) => updateMeetingTime(index, 'day', value)}
+                  >
+                    <SelectTrigger id={`meeting-day-${index}`}>
+                      <SelectValue placeholder="Select day" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="monday">Monday</SelectItem>
+                      <SelectItem value="tuesday">Tuesday</SelectItem>
+                      <SelectItem value="wednesday">Wednesday</SelectItem>
+                      <SelectItem value="thursday">Thursday</SelectItem>
+                      <SelectItem value="friday">Friday</SelectItem>
+                      <SelectItem value="saturday">Saturday</SelectItem>
+                      <SelectItem value="sunday">Sunday</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor={`meeting-start-${index}`}>Start Time</Label>
+                  <Input
+                    id={`meeting-start-${index}`}
+                    type="time"
+                    value={meeting.start_time}
+                    onChange={(e) => updateMeetingTime(index, 'start_time', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor={`meeting-end-${index}`}>End Time</Label>
+                  <Input
+                    id={`meeting-end-${index}`}
+                    type="time"
+                    value={meeting.end_time}
+                    onChange={(e) => updateMeetingTime(index, 'end_time', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor={`meeting-label-${index}`}>Label (optional)</Label>
+                  <Input
+                    id={`meeting-label-${index}`}
+                    value={meeting.label || ''}
+                    onChange={(e) => updateMeetingTime(index, 'label', e.target.value)}
+                    placeholder="Lecture"
+                  />
+                </div>
+              </div>
+            </div>
+          ))}
+          {courseData.meeting_times.length === 0 && (
+            <div className="text-center py-8 text-muted-foreground">
+              <p>No meeting times yet. Add one if the AI didn't find a recurring class schedule.</p>
             </div>
           )}
         </CardContent>

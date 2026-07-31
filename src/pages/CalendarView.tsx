@@ -6,9 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { useCourses } from "@/hooks/useCourses";
 import { ActivityBadge } from "@/components/ActivityBadge";
-import { format, parseISO, isSameDay, startOfMonth, endOfMonth } from "date-fns";
+import { format, parseISO, isSameDay, startOfMonth, endOfMonth, addDays } from "date-fns";
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Clock, BookOpen } from "lucide-react";
 import { ActivityType, CourseData, Deliverable, ScheduleItem } from "@/types/course";
+import { occurrencesInRange } from "@/utils/meetingTimes";
+
+const UPCOMING_WINDOW_DAYS = 60;
 
 interface CalendarEvent {
   id: string;
@@ -95,24 +98,64 @@ const CalendarView = () => {
     return events.sort((a, b) => a.date.getTime() - b.date.getTime());
   }, [courses]);
 
+  // Expand recurring weekly meeting times into individual class occurrences.
+  // Covers both the currently visible month (so the grid/selected-day list
+  // stay correct while navigating) and a rolling window from today (so the
+  // "Upcoming Events" summary below is correct regardless of which month is
+  // currently displayed).
+  const recurringClassEvents = useMemo(() => {
+    const today = new Date();
+    const monthStart = startOfMonth(currentMonth);
+    const monthEnd = endOfMonth(currentMonth);
+    const upcomingEnd = addDays(today, UPCOMING_WINDOW_DAYS);
+
+    const rangeStart = today < monthStart ? today : monthStart;
+    const rangeEnd = upcomingEnd > monthEnd ? upcomingEnd : monthEnd;
+
+    const events: CalendarEvent[] = [];
+
+    courses.forEach(course => {
+      if (!course.data) return;
+      const courseData = course.data as CourseData;
+
+      occurrencesInRange(courseData.meeting_times ?? [], rangeStart, rangeEnd).forEach(({ date, meeting }) => {
+        events.push({
+          id: `${course.id}-meeting-${meeting.day}-${meeting.start_time}-${date.toISOString()}`,
+          date,
+          type: 'class',
+          title: meeting.label || `${courseData.course.code || courseData.course.title} Class`,
+          course: courseData.course.title,
+          courseCode: courseData.course.code,
+        });
+      });
+    });
+
+    return events;
+  }, [courses, currentMonth]);
+
+  const allEvents = useMemo(
+    () => [...calendarEvents, ...recurringClassEvents].sort((a, b) => a.date.getTime() - b.date.getTime()),
+    [calendarEvents, recurringClassEvents]
+  );
+
   // Get events for selected date
   const selectedDateEvents = useMemo(() => {
     if (!selectedDate) return [];
-    return calendarEvents.filter(event => isSameDay(event.date, selectedDate));
-  }, [calendarEvents, selectedDate]);
+    return allEvents.filter(event => isSameDay(event.date, selectedDate));
+  }, [allEvents, selectedDate]);
 
   // Get events for current month (for calendar display)
   const monthEvents = useMemo(() => {
     const monthStart = startOfMonth(currentMonth);
     const monthEnd = endOfMonth(currentMonth);
-    return calendarEvents.filter(event => 
+    return allEvents.filter(event =>
       event.date >= monthStart && event.date <= monthEnd
     );
-  }, [calendarEvents, currentMonth]);
+  }, [allEvents, currentMonth]);
 
   // Check if a date has events
   const hasEvents = (date: Date) => {
-    return calendarEvents.some(event => isSameDay(event.date, date));
+    return allEvents.some(event => isSameDay(event.date, date));
   };
 
   const getEventTypeColor = (event: CalendarEvent) => {
@@ -293,14 +336,14 @@ const CalendarView = () => {
           </div>
 
           {/* Upcoming Events Summary */}
-          {calendarEvents.length > 0 && (
+          {allEvents.length > 0 && (
             <Card className="shadow-soft mt-6">
               <CardHeader>
                 <CardTitle>Upcoming Events</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {calendarEvents
+                  {allEvents
                     .filter(event => event.date >= new Date())
                     .slice(0, 6)
                     .map((event) => (
