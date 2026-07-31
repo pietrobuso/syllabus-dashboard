@@ -1,4 +1,5 @@
-import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
+import { createContext, useContext, ReactNode } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { CourseData } from '@/types/course';
 import { supabase } from '@/integrations/supabase/client';
 import type { Json } from '@/integrations/supabase/types';
@@ -25,42 +26,27 @@ interface CoursesContextType {
 
 const CoursesContext = createContext<CoursesContextType | undefined>(undefined);
 
+const errorMessage = (error: unknown) => (error instanceof Error ? error.message : 'Unknown error');
+
 export const CoursesProvider = ({ children }: { children: ReactNode }) => {
-  const [courses, setCourses] = useState<Course[]>([]);
   const { user } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
-  // Load courses from Supabase when user is authenticated
-  useEffect(() => {
-    if (user) {
-      loadCourses();
-    } else {
-      setCourses([]);
-    }
-  }, [user]);
+  const coursesQueryKey = ['courses', user?.id] as const;
 
-  const loadCourses = async () => {
-    if (!user) return;
+  const { data: courses = [] } = useQuery({
+    queryKey: coursesQueryKey,
+    queryFn: async (): Promise<Course[]> => {
+      const { data, error } = await supabase
+        .from('courses')
+        .select('*')
+        .eq('user_id', user!.id)
+        .order('last_modified', { ascending: false });
 
-    const { data, error } = await supabase
-      .from('courses')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('last_modified', { ascending: false });
+      if (error) throw error;
 
-    if (error) {
-      console.error('Error loading courses:', error);
-      toast({
-        title: "Error loading courses",
-        description: error.message,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (data) {
-      // Transform once, avoiding redundant spreads
-      const transformed = data.map(course => ({
+      return (data ?? []).map(course => ({
         id: course.id,
         name: course.name,
         code: course.code,
@@ -69,44 +55,29 @@ export const CoursesProvider = ({ children }: { children: ReactNode }) => {
         createdAt: course.created_at,
         lastModified: course.last_modified,
       }));
-      setCourses(transformed);
-    }
-  };
+    },
+    enabled: !!user,
+  });
 
-  const addCourse = async (courseData: CourseData, fileName: string): Promise<Course | undefined> => {
-    if (!user) {
-      toast({
-        title: "Error",
-        description: "You must be logged in to add courses",
-        variant: "destructive",
-      });
-      return;
-    }
+  const addCourseMutation = useMutation({
+    mutationFn: async ({ courseData, fileName }: { courseData: CourseData; fileName: string }): Promise<Course> => {
+      if (!user) throw new Error('You must be logged in to add courses');
 
-    const { data, error } = await supabase
-      .from('courses')
-      .insert({
-        user_id: user.id,
-        name: courseData.course.title || fileName.replace(/\.[^/.]+$/, ""),
-        code: courseData.course.code || '',
-        semester: courseData.course.semester || '',
-        data: courseData as unknown as Json,
-      })
-      .select()
-      .single();
+      const { data, error } = await supabase
+        .from('courses')
+        .insert({
+          user_id: user.id,
+          name: courseData.course.title || fileName.replace(/\.[^/.]+$/, ''),
+          code: courseData.course.code || '',
+          semester: courseData.course.semester || '',
+          data: courseData as unknown as Json,
+        })
+        .select()
+        .single();
 
-    if (error) {
-      console.error('Error adding course:', error);
-      toast({
-        title: "Error adding course",
-        description: error.message,
-        variant: "destructive",
-      });
-      return;
-    }
+      if (error) throw error;
 
-    if (data) {
-      const newCourse: Course = {
+      return {
         id: data.id,
         name: data.name,
         code: data.code,
@@ -115,78 +86,101 @@ export const CoursesProvider = ({ children }: { children: ReactNode }) => {
         createdAt: data.created_at,
         lastModified: data.last_modified,
       };
-      setCourses(prev => [newCourse, ...prev]);
-      return newCourse;
+    },
+    onSuccess: (newCourse) => {
+      queryClient.setQueryData<Course[]>(coursesQueryKey, (prev = []) => [newCourse, ...prev]);
+    },
+    onError: (error) => {
+      toast({ title: 'Error adding course', description: errorMessage(error), variant: 'destructive' });
+    },
+  });
+
+  const updateCourseMutation = useMutation({
+    mutationFn: async ({ id, courseData }: { id: string; courseData: CourseData }) => {
+      if (!user) throw new Error('You must be logged in to update courses');
+
+      const { error } = await supabase
+        .from('courses')
+        .update({
+          name: courseData.course.title,
+          code: courseData.course.code,
+          semester: courseData.course.semester,
+          data: courseData as unknown as Json,
+        })
+        .eq('id', id)
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+      return { id, courseData };
+    },
+    onSuccess: ({ id, courseData }) => {
+      const now = new Date().toISOString();
+      queryClient.setQueryData<Course[]>(coursesQueryKey, (prev = []) =>
+        prev.map(course =>
+          course.id === id
+            ? {
+                ...course,
+                data: courseData,
+                name: courseData.course.title,
+                code: courseData.course.code,
+                semester: courseData.course.semester,
+                lastModified: now,
+              }
+            : course
+        )
+      );
+    },
+    onError: (error) => {
+      toast({ title: 'Error updating course', description: errorMessage(error), variant: 'destructive' });
+    },
+  });
+
+  const deleteCourseMutation = useMutation({
+    mutationFn: async (id: string) => {
+      if (!user) throw new Error('You must be logged in to delete courses');
+
+      const { error } = await supabase
+        .from('courses')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+      return id;
+    },
+    onSuccess: (id) => {
+      queryClient.setQueryData<Course[]>(coursesQueryKey, (prev = []) => prev.filter(course => course.id !== id));
+    },
+    onError: (error) => {
+      toast({ title: 'Error deleting course', description: errorMessage(error), variant: 'destructive' });
+    },
+  });
+
+  const addCourse = async (courseData: CourseData, fileName: string) => {
+    try {
+      return await addCourseMutation.mutateAsync({ courseData, fileName });
+    } catch {
+      return undefined;
     }
   };
 
   const updateCourse = async (id: string, courseData: CourseData) => {
-    if (!user) return;
-
-    const { error } = await supabase
-      .from('courses')
-      .update({
-        name: courseData.course.title,
-        code: courseData.course.code,
-        semester: courseData.course.semester,
-        data: courseData as unknown as Json,
-      })
-      .eq('id', id)
-      .eq('user_id', user.id);
-
-    if (error) {
-      console.error('Error updating course:', error);
-      toast({
-        title: "Error updating course",
-        description: error.message,
-        variant: "destructive",
-      });
-      return;
+    try {
+      await updateCourseMutation.mutateAsync({ id, courseData });
+    } catch {
+      // error already surfaced via toast in onError
     }
-
-    // Optimized update: only update if match found
-    const now = new Date().toISOString();
-    setCourses(prev => 
-      prev.map(course => 
-        course.id === id 
-          ? { 
-              ...course, 
-              data: courseData,
-              name: courseData.course.title,
-              code: courseData.course.code,
-              semester: courseData.course.semester,
-              lastModified: now
-            }
-          : course
-      )
-    );
   };
 
   const deleteCourse = async (id: string) => {
-    if (!user) return;
-
-    const { error } = await supabase
-      .from('courses')
-      .delete()
-      .eq('id', id)
-      .eq('user_id', user.id);
-
-    if (error) {
-      console.error('Error deleting course:', error);
-      toast({
-        title: "Error deleting course",
-        description: error.message,
-        variant: "destructive",
-      });
-      return;
+    try {
+      await deleteCourseMutation.mutateAsync(id);
+    } catch {
+      // error already surfaced via toast in onError
     }
-
-    setCourses(prev => prev.filter(course => course.id !== id));
   };
 
-  const getCourse = (id: string) => {
-    return courses.find(course => course.id === id);
-  };
+  const getCourse = (id: string) => courses.find(course => course.id === id);
 
   return (
     <CoursesContext.Provider value={{
