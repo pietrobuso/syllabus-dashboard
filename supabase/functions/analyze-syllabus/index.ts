@@ -33,6 +33,27 @@ When analyzing this syllabus:
 
 CRITICAL - do not fabricate: if a field's information is simply not present anywhere in the document, leave it as an empty string (or omit that array item entirely). Do NOT invent placeholder dates, names, percentages, or office hours to make the output look more complete. A blank field the student can fill in themselves is far better than a confident-looking wrong answer they might trust. Before writing any value, be able to point to the exact text in the document that supports it.
 
+BRAZILIAN / PORTUGUESE SYLLABI - many documents you will see are Brazilian and written in Portuguese. Handle them as follows.
+
+Section headings map to fields like this:
+- "CONTEÚDO", "CONTEÚDO PROGRAMÁTICO", "EMENTA", "PROGRAMA" -> the "content" field. This is the official topic/unit outline. It is NOT a class schedule, even when its items are numbered 1., 2., 3. Those numbers are unit numbers, not class sessions or week numbers. NEVER turn this list into "schedule" entries.
+- "PROGRAMAÇÃO AULA-A-AULA", "CRONOGRAMA", "CALENDÁRIO", "PLANO DE AULAS" -> the "schedule" field. This is the session-by-session plan.
+- "CRITÉRIOS DE AVALIAÇÃO", "AVALIAÇÃO" (with weights/"PESO EM %") -> "grading"
+- "REFERÊNCIAS", "BIBLIOGRAFIA" -> readings, not schedule entries
+- "CONTATO E OFFICE HOURS", "PROFESSORES", "DOCENTES" -> "instructors"
+- "METODOLOGIA", "COMPROMISSO ÉTICO" -> "policies" where relevant
+- "OBJETIVOS DA DISCIPLINA", "LEARNING GOALS" -> not extracted; ignore
+
+The same topics often appear BOTH in "CONTEÚDO" and in "PROGRAMAÇÃO AULA-A-AULA". That is normal and is not a duplicate to be merged: the CONTEÚDO list goes to "content", and the aula-a-aula list goes to "schedule". Keep both.
+
+Dates are day/month, NOT month/day. "05/08" means 5 August, never 8 May. Watch for consecutive rows increasing by 7 days (05/08, 12/08, 19/08) as confirmation. If a date has no year, take the year from the semester header ("2º 2026", "2nd/2026", "2º semestre de 2026" all mean the second semester of 2026) and pick the year that makes the date fall inside that term.
+
+Placeholder phrases mean the information DOES NOT EXIST YET. Treat them as absent and leave the field empty or the array empty - never fill the gap with something invented:
+- "Em elaboração", "A definir", "A ser definido", "A combinar", "A ser divulgado", "Será disponibilizada na 1ª aula", "TBD", "TBA"
+For example, if "PROGRAMAÇÃO AULA-A-AULA" only says "Em elaboração", then "schedule" must be an empty array - do NOT populate it from the CONTEÚDO list to compensate.
+
+Session-numbered schedules without dates are common ("Aula 01 ... Aula 15", "Class 1 ... Class 14"). Put them in "schedule", use the session number as "week", and leave "date" empty. Do NOT invent calendar dates for them - the app derives those from a start date the student provides.
+
 Be comprehensive but honest-extract everything that is actually in the document, and nothing that isn't.`;
 
 // Gemini function-calling schemas are OpenAPI-subset: uppercase types, no additionalProperties.
@@ -60,6 +81,10 @@ const EXTRACT_SYLLABUS_FUNCTION = {
           institution: {
             type: "STRING",
             description: "University/college name if mentioned (official name preferred). Leave empty if not stated."
+          },
+          start_date: {
+            type: "STRING",
+            description: "First day of classes in YYYY-MM-DD format, ONLY if the document actually states it (e.g. the first row of a dated class schedule, or a line like 'início das aulas: 05/08'). Remember dates are day/month. Leave empty if the document never says when classes start - do not guess it from the semester."
           }
         },
         required: ["title", "code", "semester"]
@@ -119,17 +144,17 @@ const EXTRACT_SYLLABUS_FUNCTION = {
       },
       schedule: {
         type: "ARRAY",
-        description: "Week-by-week course schedule. Create one entry per week/session with all relevant information for that time period.",
+        description: "The session-by-session or week-by-week class plan (e.g. a 'CLASS SCHEDULE' table, or 'PROGRAMAÇÃO AULA-A-AULA'). One entry per class session. Only include entries that the document actually lists as sessions - never build this list out of a topic outline (see the 'content' field).",
         items: {
           type: "OBJECT",
           properties: {
             date: {
               type: "STRING",
-              description: "Start date of this week/session in YYYY-MM-DD format. If only week numbers given, estimate dates based on semester start. If ranges like 'Sept 5-9', use Sept 5. Format must be YYYY-MM-DD (e.g., '2024-09-15')."
+              description: "The date of this session in YYYY-MM-DD format, ONLY if the document states a date for it. Dates are day/month (05/08 = 5 August); take the year from the semester header if the date omits it. If the document lists sessions without dates (e.g. 'Aula 01', 'Class 1' with an empty date column), leave this EMPTY - the app derives the real date from the course start date. Never invent a date."
             },
             week: {
               type: "NUMBER",
-              description: "Sequential week number in the course (Week 1, Week 2, etc.). Start from 1 and increment."
+              description: "The session/week number as the document numbers it: 'Aula 07' -> 7, 'Class 3' -> 3, 'Semana 2'/'Week 2' -> 2. If sessions are listed in order without numbers, number them sequentially from 1."
             },
             topic: {
               type: "STRING",
@@ -173,7 +198,7 @@ const EXTRACT_SYLLABUS_FUNCTION = {
       },
       content: {
         type: "ARRAY",
-        description: "Topic/unit outline that is NOT organized by week or date - e.g. a numbered list of units/modules/topics the syllabus presents on its own, separate from the dated weekly schedule. Only use this when the document actually presents such an outline; leave it empty otherwise. Do not duplicate entries that already have a date/week in 'schedule'.",
+        description: "The course's topic/unit outline - the syllabus section listing what the course covers, independent of any calendar. In Portuguese syllabi this is the 'CONTEÚDO', 'CONTEÚDO PROGRAMÁTICO' or 'EMENTA' section; in English ones it's a topic/unit/module list. Its items are usually numbered (1., 2., 3.) but those are UNIT numbers, not class sessions - this list must never be turned into 'schedule' entries. It is expected and correct for these topics to also appear in the session schedule; extract both. Leave empty only if the document has no such outline.",
         items: {
           type: "OBJECT",
           properties: {
@@ -201,7 +226,7 @@ const EXTRACT_SYLLABUS_FUNCTION = {
       },
       meeting_times: {
         type: "ARRAY",
-        description: "The recurring day-of-week/time pattern this class regularly meets, e.g. 'Lectures MWF 10:00-10:50am' or 'Discussion section Tuesdays 3-4pm'. One entry per weekday the class meets (so 'MWF 10:00-10:50am' becomes three entries: monday, wednesday, friday). Only include a meeting time if the syllabus explicitly states a recurring day and time - never guess one.",
+        description: "The recurring day-of-week/time pattern this class regularly meets, e.g. 'Lectures MWF 10:00-10:50am', 'Discussion section Tuesdays 3-4pm', 'TEACHING DAY & TIME: WEDNESDAYS; 9:00 - 10:40', or Portuguese equivalents ('Aulas às quartas-feiras, 9h-10h40', 'HORÁRIO: SEG e QUA 14:00-15:40'). Portuguese weekday names map as: segunda(-feira)=monday, terça=tuesday, quarta=wednesday, quinta=thursday, sexta=friday, sábado=saturday, domingo=sunday. One entry per weekday the class meets (so 'MWF 10:00-10:50am' becomes three entries: monday, wednesday, friday). Only include a meeting time if the syllabus explicitly states a recurring day and time - never guess one.",
         items: {
           type: "OBJECT",
           properties: {
@@ -228,7 +253,7 @@ const EXTRACT_SYLLABUS_FUNCTION = {
       },
       important_dates: {
         type: "ARRAY",
-        description: "Critical dates students must remember. Major milestones that deserve calendar reminders.",
+        description: "Critical dates students must remember. Major milestones that deserve calendar reminders. This includes rows inside a class-schedule table that carry a date but are not a regular class - e.g. 'NO REGULAR CLASSES DUE TO SPRING BREAK', 'SEM AULA - FERIADO', 'Semana de Provas', 'Final Exam' - put those here (type 'break' or 'exam' as appropriate) rather than as schedule sessions.",
         items: {
           type: "OBJECT",
           properties: {

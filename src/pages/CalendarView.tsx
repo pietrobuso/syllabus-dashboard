@@ -6,10 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { useCourses } from "@/hooks/useCourses";
 import { ActivityBadge } from "@/components/ActivityBadge";
-import { format, parseISO, isSameDay, startOfMonth, endOfMonth, addDays } from "date-fns";
+import { format, parseISO, isSameDay, startOfMonth, endOfMonth, addDays, isValid } from "date-fns";
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Clock, BookOpen } from "lucide-react";
-import { ActivityType, CourseData, Deliverable, ScheduleItem } from "@/types/course";
+import { ActivityType, CourseData, Deliverable } from "@/types/course";
 import { occurrencesInRange } from "@/utils/meetingTimes";
+import { resolveScheduleDates } from "@/utils/scheduleDates";
 
 const UPCOMING_WINDOW_DAYS = 60;
 
@@ -22,7 +23,7 @@ interface CalendarEvent {
   courseCode: string;
   activities?: ActivityType[];
   deliverable?: Deliverable;
-  eventType?: 'exam' | 'deadline' | 'break' | 'other';
+  eventType?: 'exam' | 'deadline' | 'quiz' | 'project' | 'break' | 'other';
   description?: string;
 }
 
@@ -40,24 +41,26 @@ const CalendarView = () => {
 
       const courseData = course.data as CourseData;
 
-      // Add schedule items (classes)
-      courseData.schedule.forEach((item: ScheduleItem) => {
-        try {
-          const eventDate = parseISO(item.date);
+      // Add schedule items (classes). Uses resolved dates so session-numbered
+      // entries show up once the course has a start date.
+      resolveScheduleDates(courseData).forEach((item, index) => {
+        if (item.resolvedDate) {
           events.push({
-            id: `${course.id}-schedule-${item.date}`,
-            date: eventDate,
+            id: `${course.id}-schedule-${index}-${item.resolvedDate.toISOString()}`,
+            date: item.resolvedDate,
             type: 'class',
             title: item.topic,
             course: courseData.course.title,
             courseCode: courseData.course.code,
             activities: item.activities,
           });
+        }
 
-          // Add deliverables
-          item.deliverables.forEach((deliverable: Deliverable) => {
-            try {
-              const dueDate = parseISO(deliverable.due);
+        // Add deliverables
+        item.deliverables.forEach((deliverable: Deliverable) => {
+          try {
+            const dueDate = parseISO(deliverable.due);
+            if (isValid(dueDate)) {
               events.push({
                 id: `${course.id}-deliverable-${deliverable.name}-${deliverable.due}`,
                 date: dueDate,
@@ -67,28 +70,28 @@ const CalendarView = () => {
                 courseCode: courseData.course.code,
                 deliverable,
               });
-            } catch {
-              // Skip invalid dates
             }
-          });
-        } catch {
-          // Skip invalid dates
-        }
+          } catch {
+            // Skip invalid dates
+          }
+        });
       });
 
       // Add important dates
       courseData.important_dates?.forEach((importantDate) => {
         try {
           const eventDate = parseISO(importantDate.date);
-          events.push({
-            id: `${course.id}-important-${importantDate.name}-${importantDate.date}`,
-            date: eventDate,
-            type: 'important_date',
-            title: importantDate.name,
-            course: courseData.course.title,
-            courseCode: courseData.course.code,
-            eventType: importantDate.type,
-          });
+          if (isValid(eventDate)) {
+            events.push({
+              id: `${course.id}-important-${importantDate.name}-${importantDate.date}`,
+              date: eventDate,
+              type: 'important_date',
+              title: importantDate.name,
+              course: courseData.course.title,
+              courseCode: courseData.course.code,
+              eventType: importantDate.type,
+            });
+          }
         } catch {
           // Skip invalid dates
         }

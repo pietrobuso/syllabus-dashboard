@@ -7,6 +7,7 @@ describe("validateAndCleanData", () => {
 
     expect(result.course.title).toBe("");
     expect(result.course.semester).toBe("");
+    expect(result.course.start_date).toBe("");
     expect(result.instructors).toEqual([]);
     expect(result.grading).toEqual([]);
     expect(result.schedule).toEqual([]);
@@ -72,6 +73,12 @@ describe("validateAndCleanData", () => {
     });
 
     expect(result.important_dates.map((d) => d.type)).toEqual(["quiz", "project"]);
+  });
+
+  it("keeps a valid start_date and rejects one that isn't YYYY-MM-DD", () => {
+    expect(validateAndCleanData({ course: { start_date: "2026-08-05" } }).course.start_date).toBe("2026-08-05");
+    expect(validateAndCleanData({ course: { start_date: "05/08/2026" } }).course.start_date).toBe("");
+    expect(validateAndCleanData({ course: { start_date: "agosto" } }).course.start_date).toBe("");
   });
 
   it("keeps content units with a title and drops ones without", () => {

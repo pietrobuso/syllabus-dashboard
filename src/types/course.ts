@@ -3,6 +3,13 @@ export interface Course {
   code: string;
   semester: string;
   institution: string;
+  /**
+   * First day of classes, YYYY-MM-DD. Empty when unknown.
+   * Used to derive dates for schedule entries that only have a
+   * session/week number (common in Brazilian syllabi, where the
+   * "programação aula-a-aula" lists Aula 01..N with no dates).
+   */
+  start_date: string;
 }
 
 export interface Instructor {

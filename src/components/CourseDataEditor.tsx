@@ -280,6 +280,19 @@ export const CourseDataEditor = ({ initialData, onSave, onCancel }: CourseDataEd
                 placeholder="e.g., University of Example"
               />
             </div>
+            <div>
+              <Label htmlFor="start-date">First Day of Classes</Label>
+              <Input
+                id="start-date"
+                type="date"
+                value={courseData.course.start_date}
+                onChange={(e) => updateCourse('start_date', e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Used to work out dates for schedule entries that only have a session number.
+                Sessions follow your weekly meeting times if you've set them, otherwise one per week.
+              </p>
+            </div>
           </div>
         </CardContent>
       </Card>

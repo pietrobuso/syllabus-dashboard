@@ -3,13 +3,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ScheduleItem, ActivityType } from "@/types/course";
+import { ActivityType } from "@/types/course";
+import { ResolvedScheduleItem } from "@/utils/scheduleDates";
 import { ActivityBadge } from "./ActivityBadge";
 import { Calendar, Clock, Search, Filter, LayoutGrid, List } from "lucide-react";
 import { format, parseISO } from "date-fns";
 
 interface ScheduleViewProps {
-  schedule: ScheduleItem[];
+  schedule: ResolvedScheduleItem[];
 }
 
 export const ScheduleView = ({ schedule }: ScheduleViewProps) => {
@@ -20,19 +21,16 @@ export const ScheduleView = ({ schedule }: ScheduleViewProps) => {
   const filteredSchedule = schedule.filter(item => {
     const matchesSearch = item.topic.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          item.activities.some(activity => activity.toLowerCase().includes(searchTerm.toLowerCase()));
-    
+
     const matchesFilter = filterActivity === "all" || item.activities.includes(filterActivity);
-    
+
     return matchesSearch && matchesFilter;
   });
 
-  const formatDate = (dateString: string) => {
-    try {
-      const date = parseISO(dateString);
-      return format(date, "MMM dd, yyyy");
-    } catch {
-      return dateString;
-    }
+  // Derived dates get a "~" so they're never mistaken for a date the syllabus stated.
+  const formatItemDate = (item: ResolvedScheduleItem, pattern: string) => {
+    if (!item.resolvedDate) return item.date || "No date";
+    return `${item.isEstimated ? "~" : ""}${format(item.resolvedDate, pattern)}`;
   };
 
   const formatDateShort = (dateString: string) => {
@@ -112,7 +110,7 @@ export const ScheduleView = ({ schedule }: ScheduleViewProps) => {
                   <div className="flex flex-col sm:flex-row gap-4">
                     {/* Date and Week */}
                     <div className="flex flex-col items-start sm:items-center text-center min-w-0 sm:min-w-[100px]">
-                      <div className="text-lg font-semibold text-primary">{formatDateShort(item.date)}</div>
+                      <div className="text-lg font-semibold text-primary">{formatItemDate(item, "MMM dd")}</div>
                       <Badge variant="secondary" className="text-xs">Week {item.week}</Badge>
                     </div>
                     
@@ -167,7 +165,7 @@ export const ScheduleView = ({ schedule }: ScheduleViewProps) => {
               <tbody>
                 {filteredSchedule.map((item, index) => (
                   <tr key={index} className="border-b border-border/30 hover:bg-muted/30">
-                    <td className="py-3 px-2 text-sm">{formatDate(item.date)}</td>
+                    <td className="py-3 px-2 text-sm">{formatItemDate(item, "MMM dd, yyyy")}</td>
                     <td className="py-3 px-2">
                       <Badge variant="secondary" className="text-xs">Week {item.week}</Badge>
                     </td>
@@ -198,6 +196,12 @@ export const ScheduleView = ({ schedule }: ScheduleViewProps) => {
             <Calendar className="w-12 h-12 mx-auto mb-3 opacity-50" />
             <p>No schedule items found matching your criteria.</p>
           </div>
+        )}
+
+        {filteredSchedule.some(item => item.isEstimated) && (
+          <p className="text-xs text-muted-foreground mt-4">
+            Dates marked with ~ are estimated from the course start date, not stated in the syllabus.
+          </p>
         )}
       </CardContent>
     </Card>

@@ -4,6 +4,7 @@ import { CourseData } from "@/types/course";
 import { Calendar, Clock, GraduationCap, Users } from "lucide-react";
 import { format, parseISO, isAfter, startOfDay, isSameDay } from "date-fns";
 import { nextOccurrence } from "@/utils/meetingTimes";
+import { resolveScheduleDates } from "@/utils/scheduleDates";
 
 interface CourseStatsProps {
   courseData: CourseData;
@@ -18,19 +19,13 @@ interface NextClassInfo {
 export const CourseStats = ({ courseData }: CourseStatsProps) => {
   const today = new Date();
 
-  // Find next dated class (today or future)
-  const upcomingClasses = courseData.schedule
-    .filter(item => {
-      try {
-        const classDate = parseISO(item.date);
-        return isSameDay(classDate, today) || isAfter(classDate, startOfDay(today));
-      } catch {
-        return false;
-      }
-    })
-    .sort((a, b) => parseISO(a.date).getTime() - parseISO(b.date).getTime());
-
-  const nextScheduledClass = upcomingClasses[0];
+  // Find next class from the schedule (today or future). Uses resolved dates,
+  // so entries that only carry a session number still count once the course
+  // has a start date.
+  const nextScheduledClass = resolveScheduleDates(courseData)
+    .filter(item => item.resolvedDate !== null)
+    .filter(item => isSameDay(item.resolvedDate!, today) || isAfter(item.resolvedDate!, startOfDay(today)))
+    .sort((a, b) => a.resolvedDate!.getTime() - b.resolvedDate!.getTime())[0];
 
   // Find the soonest occurrence of a recurring weekly meeting time
   const nextMeetingOccurrence = courseData.meeting_times
@@ -38,15 +33,15 @@ export const CourseStats = ({ courseData }: CourseStatsProps) => {
     .filter((entry): entry is { meeting: typeof courseData.meeting_times[number]; date: Date } => entry.date !== null)
     .sort((a, b) => a.date.getTime() - b.date.getTime())[0];
 
-  // "Next class" is whichever of the two is sooner - a dated schedule entry
+  // "Next class" is whichever of the two is sooner - a schedule entry
   // or the next occurrence of a recurring meeting time.
   const nextClassCandidates: NextClassInfo[] = [];
-  if (nextScheduledClass) {
-    try {
-      nextClassCandidates.push({ topic: nextScheduledClass.topic, date: parseISO(nextScheduledClass.date), isRecurring: false });
-    } catch {
-      // Skip invalid date
-    }
+  if (nextScheduledClass?.resolvedDate) {
+    nextClassCandidates.push({
+      topic: nextScheduledClass.topic,
+      date: nextScheduledClass.resolvedDate,
+      isRecurring: false
+    });
   }
   if (nextMeetingOccurrence) {
     nextClassCandidates.push({
