@@ -5,8 +5,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const ANTHROPIC_MODEL = "claude-sonnet-5";
-const ANTHROPIC_VERSION = "2023-06-01";
+const GEMINI_MODEL = "gemini-2.5-flash";
+const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 const SYSTEM_PROMPT = `You are a seasoned university professor with decades of experience designing and teaching courses. You deeply understand syllabus structure, academic terminology, and how information flows in course documents.
 
@@ -29,58 +29,59 @@ When analyzing this syllabus:
 
 Be comprehensive but intelligent-extract everything that helps students stay organized.`;
 
-const EXTRACT_SYLLABUS_TOOL = {
+// Gemini function-calling schemas are OpenAPI-subset: uppercase types, no additionalProperties.
+const EXTRACT_SYLLABUS_FUNCTION = {
   name: "extract_syllabus_data",
   description: "Extract structured course data from a syllabus document",
-  input_schema: {
-    type: "object",
+  parameters: {
+    type: "OBJECT",
     properties: {
       course: {
-        type: "object",
+        type: "OBJECT",
         properties: {
           title: {
-            type: "string",
+            type: "STRING",
             description: "The official course title as students would recognize it. Not the course code, not a description-the actual name (e.g., 'Introduction to Data Structures', 'Advanced Molecular Biology')"
           },
           code: {
-            type: "string",
+            type: "STRING",
             description: "Course identifier/code as used in registration systems. Format varies by institution (e.g., 'CS 2310', 'BIOL-445', 'ENG101'). Extract exactly as written."
           },
           semester: {
-            type: "string",
+            type: "STRING",
             description: "Academic term with year. Common formats: 'Fall 2024', 'Spring 2025', 'Summer Session I 2024'. Match the syllabus wording."
           },
           institution: {
-            type: "string",
+            type: "STRING",
             description: "University/college name if mentioned (official name preferred). Leave empty if not stated."
           }
         },
         required: ["title", "code", "semester"]
       },
       instructors: {
-        type: "array",
+        type: "ARRAY",
         description: "All teaching staff. List primary instructor first, then TAs/assistants.",
         items: {
-          type: "object",
+          type: "OBJECT",
           properties: {
             name: {
-              type: "string",
+              type: "STRING",
               description: "Full name with proper title if given (Dr., Prof., Mr., Ms.). Extract exactly as written."
             },
             email: {
-              type: "string",
+              type: "STRING",
               description: "Contact email address. Essential for students to reach instructors."
             },
             office_hours: {
-              type: "string",
+              type: "STRING",
               description: "When students can meet this person. Include days/times and format (in-person, Zoom, by appointment). Examples: 'Mon/Wed 2-4pm, Room 305', 'By appointment via email', 'Tuesdays 10am-12pm (Zoom link in Canvas)'"
             },
             location: {
-              type: "string",
+              type: "STRING",
               description: "Where to find them: office room number, building name, or virtual location. Examples: 'Science Hall 402', 'Engineering Building 3rd Floor', 'Virtual office on Teams'"
             },
             role: {
-              type: "string",
+              type: "STRING",
               enum: ["professor", "ta"],
               description: "Use 'professor' for primary instructor (Professor, Lecturer, Instructor). Use 'ta' for Teaching Assistants, Graduate Assistants, or Lab Instructors. When unclear, default to professor if they're the main point of contact."
             }
@@ -89,21 +90,21 @@ const EXTRACT_SYLLABUS_TOOL = {
         }
       },
       grading: {
-        type: "array",
+        type: "ARRAY",
         description: "Complete breakdown of how the final grade is calculated. Every component that counts toward the grade.",
         items: {
-          type: "object",
+          type: "OBJECT",
           properties: {
             component: {
-              type: "string",
+              type: "STRING",
               description: "Name of this grade component as students would recognize it. Use the syllabus terminology. Examples: 'Homework Assignments', 'Midterm Exam', 'Lab Reports', 'Class Participation', 'Final Project', 'Quizzes'. Group similar items (e.g., if there are 10 homeworks worth 40% total, use one entry 'Homework Assignments' at 0.4)."
             },
             weight: {
-              type: "number",
+              type: "NUMBER",
               description: "Percentage of final grade as a decimal between 0 and 1. Example: 35% = 0.35, 12.5% = 0.125. Must sum to 1.0 across all components. Convert point-based systems to percentages (e.g., '300 points out of 1000' = 0.3)."
             },
             description: {
-              type: "string",
+              type: "STRING",
               description: "Additional context students need: how many of this item, frequency, what it covers, drop policy. Examples: '4 exams, lowest dropped', 'Weekly, total of 12', 'Individual research paper, 8-10 pages', 'Cumulative final', 'Best 8 of 10 count'."
             }
           },
@@ -111,44 +112,44 @@ const EXTRACT_SYLLABUS_TOOL = {
         }
       },
       schedule: {
-        type: "array",
+        type: "ARRAY",
         description: "Week-by-week course schedule. Create one entry per week/session with all relevant information for that time period.",
         items: {
-          type: "object",
+          type: "OBJECT",
           properties: {
             date: {
-              type: "string",
+              type: "STRING",
               description: "Start date of this week/session in YYYY-MM-DD format. If only week numbers given, estimate dates based on semester start. If ranges like 'Sept 5-9', use Sept 5. Format must be YYYY-MM-DD (e.g., '2024-09-15')."
             },
             week: {
-              type: "number",
+              type: "NUMBER",
               description: "Sequential week number in the course (Week 1, Week 2, etc.). Start from 1 and increment."
             },
             topic: {
-              type: "string",
+              type: "STRING",
               description: "Main subject/theme for this week. What students will learn. Extract from syllabus headers like 'Week 5: Object-Oriented Programming' -> 'Object-Oriented Programming'. Be concise but descriptive."
             },
             activities: {
-              type: "array",
-              items: { type: "string", enum: ["lecture", "lab", "quiz", "exam", "assignment", "monitored"] },
+              type: "ARRAY",
+              items: { type: "STRING", enum: ["lecture", "lab", "quiz", "exam", "assignment", "monitored"] },
               description: "What happens this week. Use 'lecture' for standard classes, 'lab' for hands-on sessions, 'quiz' for in-class quizzes, 'exam' for major tests, 'assignment' when homework is assigned, 'monitored' for proctored activities."
             },
             deliverables: {
-              type: "array",
+              type: "ARRAY",
               description: "Assignments/assessments DUE this week. Not what's assigned, but what's due.",
               items: {
-                type: "object",
+                type: "OBJECT",
                 properties: {
                   name: {
-                    type: "string",
+                    type: "STRING",
                     description: "Specific name of the deliverable (e.g., 'Problem Set 3', 'Lab Report 2', 'Midterm Exam', 'Project Proposal')"
                   },
                   due: {
-                    type: "string",
+                    type: "STRING",
                     description: "When it's due in YYYY-MM-DD format or specific time if critical (e.g., '2024-10-15' or '2024-10-15 11:59pm')"
                   },
                   type: {
-                    type: "string",
+                    type: "STRING",
                     enum: ["assignment", "quiz", "exam", "project"],
                     description: "Category: 'assignment' for homework/problem sets, 'quiz' for short assessments, 'exam' for major tests, 'project' for long-term deliverables"
                   }
@@ -156,8 +157,8 @@ const EXTRACT_SYLLABUS_TOOL = {
               }
             },
             readings: {
-              type: "array",
-              items: { type: "string" },
+              type: "ARRAY",
+              items: { type: "STRING" },
               description: "Required readings for this week. Include textbook chapters, articles, pages. Examples: 'Chapter 5: Neural Networks', 'Pages 142-178', 'Smith et al. (2023) paper on Canvas', 'Textbook sections 3.1-3.4'"
             }
           },
@@ -165,21 +166,21 @@ const EXTRACT_SYLLABUS_TOOL = {
         }
       },
       important_dates: {
-        type: "array",
+        type: "ARRAY",
         description: "Critical dates students must remember. Major milestones that deserve calendar reminders.",
         items: {
-          type: "object",
+          type: "OBJECT",
           properties: {
             name: {
-              type: "string",
+              type: "STRING",
               description: "Clear, specific name for this date. Examples: 'Midterm Exam 1', 'Final Project Due', 'Last Day to Drop', 'Spring Break', 'No Class - Holiday'. Students should immediately understand what happens."
             },
             date: {
-              type: "string",
+              type: "STRING",
               description: "Date in YYYY-MM-DD format. For multi-day events (like breaks), use the START date. Must be parseable. Examples: '2024-10-15', '2024-12-08'. Convert text dates to this format."
             },
             type: {
-              type: "string",
+              type: "STRING",
               enum: ["exam", "deadline", "break", "other"],
               description: "Category for filtering: 'exam' for any test/midterm/final, 'deadline' for major project/assignment due dates, 'break' for holidays/recesses/no-class periods, 'other' for guest lectures, field trips, administrative dates like drop/add deadlines"
             }
@@ -188,19 +189,19 @@ const EXTRACT_SYLLABUS_TOOL = {
         }
       },
       policies: {
-        type: "object",
+        type: "OBJECT",
         description: "Course policies students need to follow. Extract the actual rules and consequences.",
         properties: {
           late_work: {
-            type: "string",
+            type: "STRING",
             description: "Policy for late assignments: penalties, grace periods, whether late work is accepted. Examples: '10% penalty per day, max 3 days late', 'Not accepted after deadline', '24-hour grace period with no penalty', 'Lowest grade dropped so use that for emergencies'. Extract exact wording when possible."
           },
           attendance: {
-            type: "string",
+            type: "STRING",
             description: "Attendance requirements and consequences. Include: is attendance mandatory, how many absences allowed, excused absence policy, impact on grade. Examples: 'Attendance mandatory, >3 unexcused absences = grade penalty', 'Not required but strongly encouraged', 'Participation grade includes attendance', 'Excused with documentation only'."
           },
           honor_code: {
-            type: "string",
+            type: "STRING",
             description: "Academic integrity policy: what collaboration is allowed, plagiarism consequences, honor code references. Examples: 'Zero tolerance for plagiarism, will result in failing grade', 'May discuss approaches but write your own code', 'All work must be original unless cited', 'Follow university academic integrity policy'. Include specific collaboration rules if stated."
           }
         }
@@ -225,36 +226,35 @@ serve(async (req) => {
       );
     }
 
-    const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY");
-    if (!ANTHROPIC_API_KEY) {
-      throw new Error("ANTHROPIC_API_KEY is not configured");
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    if (!GEMINI_API_KEY) {
+      throw new Error("GEMINI_API_KEY is not configured");
     }
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
+    const response = await fetch(GEMINI_ENDPOINT, {
       method: "POST",
       headers: {
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": ANTHROPIC_VERSION,
+        "x-goog-api-key": GEMINI_API_KEY,
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        model: ANTHROPIC_MODEL,
-        max_tokens: 8192,
-        system: SYSTEM_PROMPT,
-        messages: [
+        systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+        contents: [
           {
             role: "user",
-            content: `Analyze this syllabus and extract all course information:\n\n${documentText.slice(0, 50000)}`
+            parts: [{ text: `Analyze this syllabus and extract all course information:\n\n${documentText.slice(0, 50000)}` }]
           }
         ],
-        tools: [EXTRACT_SYLLABUS_TOOL],
-        tool_choice: { type: "tool", name: "extract_syllabus_data" }
+        tools: [{ functionDeclarations: [EXTRACT_SYLLABUS_FUNCTION] }],
+        toolConfig: {
+          functionCallingConfig: { mode: "ANY", allowedFunctionNames: ["extract_syllabus_data"] }
+        }
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("Anthropic API error:", response.status, errorText);
+      console.error("Gemini API error:", response.status, errorText);
 
       if (response.status === 429) {
         return new Response(
@@ -265,27 +265,28 @@ serve(async (req) => {
 
       if (response.status === 401 || response.status === 403) {
         return new Response(
-          JSON.stringify({ error: "AI provider authentication failed. Check the ANTHROPIC_API_KEY secret." }),
+          JSON.stringify({ error: "AI provider authentication failed. Check the GEMINI_API_KEY secret." }),
           { status: response.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
 
-      throw new Error(`Anthropic API error: ${response.status}`);
+      throw new Error(`Gemini API error: ${response.status}`);
     }
 
     const result = await response.json();
-    const toolUseBlock = result.content?.find((block: { type: string }) => block.type === "tool_use");
+    const parts = result.candidates?.[0]?.content?.parts ?? [];
+    const functionCallPart = parts.find((part: { functionCall?: unknown }) => part.functionCall);
 
-    if (!toolUseBlock?.input) {
+    if (!functionCallPart?.functionCall?.args) {
       throw new Error("No structured data returned from AI");
     }
 
-    const extractedData = toolUseBlock.input;
+    const extractedData = functionCallPart.functionCall.args;
 
     return new Response(
       JSON.stringify({
         extractedData,
-        extractionLog: [`Successfully analyzed with Anthropic (${ANTHROPIC_MODEL})`]
+        extractionLog: [`Successfully analyzed with Google Gemini (${GEMINI_MODEL})`]
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
