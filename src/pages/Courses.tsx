@@ -40,14 +40,12 @@ const Courses = () => {
       setShowEditor(true);
 
       // Success notification with metrics
-      const confidencePercent = Math.round(aiResult.confidence * 100);
       toast({
         title: "Document analyzed successfully!",
-        description: `AI confidence: ${confidencePercent}%. Found ${extracted.schedule.length} schedule items and ${extracted.important_dates.length} important dates.`,
+        description: `Found ${extracted.schedule.length} schedule items and ${extracted.important_dates.length} important dates. Review the extracted data before saving.`,
       });
 
       console.log("AI Analysis Results:", {
-        confidence: aiResult.confidence,
         scheduleItems: extracted.schedule.length,
         importantDates: extracted.important_dates.length,
         extractionLog: aiResult.extractionLog

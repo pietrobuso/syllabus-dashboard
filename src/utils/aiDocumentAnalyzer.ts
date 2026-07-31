@@ -4,7 +4,6 @@ import { CourseData } from '@/types/course';
 
 export interface AnalyzedDocument {
   extractedData: CourseData;
-  confidence: number;
   extractionLog: string[];
 }
 
@@ -50,17 +49,15 @@ export const analyzeDocumentWithAI = async (documentText: string): Promise<Analy
     
     return {
       extractedData: cleanedData,
-      confidence: data.confidence || 0.9,
-      extractionLog: data.extractionLog || ['Successfully analyzed with Lovable AI']
+      extractionLog: data.extractionLog || ['Successfully analyzed with AI']
     };
 
   } catch (error) {
     console.error('AI analysis failed:', error);
-    
+
     // Fallback to basic extraction
     return {
       extractedData: createFallbackData(documentText),
-      confidence: 0.3,
       extractionLog: [
         'AI analysis failed, using fallback extraction',
         `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
@@ -122,7 +119,7 @@ const createFallbackData = (text: string): CourseData => {
  * Validates and normalizes AI-extracted data to ensure type safety and completeness.
  * Provides sensible defaults for missing or invalid fields.
  */
-const validateAndCleanData = (data: any): CourseData => {
+export const validateAndCleanData = (data: any): CourseData => {
   const DEFAULT_GRADING = [
     { component: "Assignments", weight: 0.4, description: "Regular assignments" },
     { component: "Exams", weight: 0.4, description: "Midterm and final exams" },
