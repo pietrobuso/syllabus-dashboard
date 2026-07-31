@@ -23,11 +23,13 @@ When analyzing this syllabus:
 - Extract what students ACTUALLY need to know for day-to-day success
 - Distinguish between "nice to know" and "must know" information
 - Recognize common syllabus patterns (weekly topics, bi-weekly assignments, multi-part projects)
-- Infer reasonable defaults when information is implicit (e.g., if labs happen every week, create entries for each)
-- Convert informal language to structured data (e.g., "midterm around Oct 15" -> specific date)
+- Extrapolate a pattern ONLY when the document itself states it applies every time (e.g. the syllabus literally says "lab every Friday" -> create a lab entry for each Friday). This is completing a stated rule, not guessing.
+- Convert informal language to structured data ONLY when the document supplies the underlying fact (e.g. "midterm around Oct 15" -> 2024-10-15, because the date is in the text). Never invent a date, name, or number that has no basis in the document.
 - Identify the PRIMARY instructor vs TAs/assistants based on context and title
 
-Be comprehensive but intelligent-extract everything that helps students stay organized.`;
+CRITICAL - do not fabricate: if a field's information is simply not present anywhere in the document, leave it as an empty string (or omit that array item entirely). Do NOT invent placeholder dates, names, percentages, or office hours to make the output look more complete. A blank field the student can fill in themselves is far better than a confident-looking wrong answer they might trust. Before writing any value, be able to point to the exact text in the document that supports it.
+
+Be comprehensive but honest-extract everything that is actually in the document, and nothing that isn't.`;
 
 // Gemini function-calling schemas are OpenAPI-subset: uppercase types, no additionalProperties.
 const EXTRACT_SYLLABUS_FUNCTION = {
@@ -181,8 +183,8 @@ const EXTRACT_SYLLABUS_FUNCTION = {
             },
             type: {
               type: "STRING",
-              enum: ["exam", "deadline", "break", "other"],
-              description: "Category for filtering: 'exam' for any test/midterm/final, 'deadline' for major project/assignment due dates, 'break' for holidays/recesses/no-class periods, 'other' for guest lectures, field trips, administrative dates like drop/add deadlines"
+              enum: ["exam", "deadline", "quiz", "project", "break", "other"],
+              description: "Category for filtering: 'exam' for any test/midterm/final, 'deadline' for major assignment due dates, 'quiz' for graded quizzes, 'project' for project milestones/deadlines, 'break' for holidays/recesses/no-class periods, 'other' for guest lectures, field trips, administrative dates like drop/add deadlines"
             }
           },
           required: ["name", "date", "type"]

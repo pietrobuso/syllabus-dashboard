@@ -2,14 +2,15 @@ import { describe, it, expect } from "vitest";
 import { validateAndCleanData } from "./aiDocumentAnalyzer";
 
 describe("validateAndCleanData", () => {
-  it("fills in sensible defaults for a mostly-empty payload", () => {
+  it("leaves missing fields empty instead of inventing placeholder data", () => {
     const result = validateAndCleanData({});
 
-    expect(result.course.title).toBe("Course Title");
-    expect(result.instructors).toHaveLength(1);
-    expect(result.grading.length).toBeGreaterThan(0);
-    expect(result.schedule).toHaveLength(1);
-    expect(result.important_dates.length).toBeGreaterThan(0);
+    expect(result.course.title).toBe("");
+    expect(result.course.semester).toBe("");
+    expect(result.instructors).toEqual([]);
+    expect(result.grading).toEqual([]);
+    expect(result.schedule).toEqual([]);
+    expect(result.important_dates).toEqual([]);
   });
 
   it("preserves valid extracted data instead of overwriting it", () => {
@@ -29,11 +30,45 @@ describe("validateAndCleanData", () => {
     expect(result.policies.late_work).toBe("no late work");
   });
 
-  it("falls back to 'deadline' for an unrecognized important_date type", () => {
+  it("drops grading components missing a name or a numeric weight instead of guessing one", () => {
+    const result = validateAndCleanData({
+      grading: [
+        { component: "Exams", weight: 0.6, description: "" },
+        { component: "", weight: 0.4 },
+        { component: "Participation" },
+      ],
+    });
+
+    expect(result.grading).toEqual([{ component: "Exams", weight: 0.6, description: "" }]);
+  });
+
+  it("drops schedule items and important dates missing their required text", () => {
+    const result = validateAndCleanData({
+      schedule: [{ week: 2, topic: "" }, { week: 3, topic: "Recursion" }],
+      important_dates: [{ name: "", date: "2026-01-01", type: "exam" }, { name: "Quiz 1", date: "" }],
+    });
+
+    expect(result.schedule).toHaveLength(1);
+    expect(result.schedule[0].topic).toBe("Recursion");
+    expect(result.important_dates).toEqual([]);
+  });
+
+  it("falls back to 'other' for an unrecognized important_date type", () => {
     const result = validateAndCleanData({
       important_dates: [{ name: "Mystery Day", date: "2026-01-01", type: "not-a-real-type" }],
     });
 
-    expect(result.important_dates[0].type).toBe("deadline");
+    expect(result.important_dates[0].type).toBe("other");
+  });
+
+  it("accepts quiz and project as valid important_date types", () => {
+    const result = validateAndCleanData({
+      important_dates: [
+        { name: "Pop Quiz", date: "2026-02-01", type: "quiz" },
+        { name: "Capstone", date: "2026-03-01", type: "project" },
+      ],
+    });
+
+    expect(result.important_dates.map((d) => d.type)).toEqual(["quiz", "project"]);
   });
 });

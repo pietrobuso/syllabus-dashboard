@@ -26,7 +26,7 @@ const Courses = () => {
     setIsUploading(true);
 
     try {
-      // Extract text and analyze with AI (Gemini 2.5 Flash)
+      // Extract text and analyze with AI (Gemini, via the analyze-syllabus edge function)
       const parsedDoc = await extractTextFromFile(file);
       const aiResult = await analyzeDocumentWithAI(parsedDoc.content);
 
