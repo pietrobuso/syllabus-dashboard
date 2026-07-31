@@ -12,6 +12,14 @@ dist
 dist-ssr
 *.local
 
+# Environment files (Supabase anon key is public-safe, but keep local overrides out of git)
+.env
+.env.*
+!.env.example
+
+# Claude Code local settings
+.claude/settings.local.json
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
