@@ -5,7 +5,8 @@ export const mockCourseData: CourseData = {
     title: "Introduction to Machine Learning",
     code: "CS 229",
     semester: "Spring 2024",
-    institution: "Stanford University"
+    institution: "Stanford University",
+    start_date: "2024-01-15"
   },
   instructors: [
     {

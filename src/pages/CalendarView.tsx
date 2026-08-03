@@ -6,10 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { useCourses } from "@/hooks/useCourses";
 import { ActivityBadge } from "@/components/ActivityBadge";
-import { format, parseISO, isSameDay, startOfMonth, endOfMonth, addDays } from "date-fns";
+import { format, parseISO, isSameDay, startOfMonth, endOfMonth, addDays, isValid } from "date-fns";
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Clock, BookOpen } from "lucide-react";
-import { ActivityType, CourseData, Deliverable, ScheduleItem } from "@/types/course";
+import { ActivityType, CourseData, Deliverable } from "@/types/course";
 import { occurrencesInRange } from "@/utils/meetingTimes";
+import { resolveScheduleDates } from "@/utils/scheduleDates";
 
 const UPCOMING_WINDOW_DAYS = 60;
 
@@ -22,7 +23,7 @@ interface CalendarEvent {
   courseCode: string;
   activities?: ActivityType[];
   deliverable?: Deliverable;
-  eventType?: 'exam' | 'deadline' | 'break' | 'other';
+  eventType?: 'exam' | 'deadline' | 'quiz' | 'project' | 'break' | 'other';
   description?: string;
 }
 
@@ -31,33 +32,43 @@ const CalendarView = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
 
-  // Generate calendar events from all courses
-  const calendarEvents = useMemo(() => {
+  // Generate calendar events from all courses. Also tracks, per course,
+  // which calendar days already have a real schedule entry - a recurring
+  // meeting time is only a stand-in for "class happens here" and must be
+  // skipped on days the schedule already covers, or the same class shows
+  // up twice (once with its real topic, once as a generic "X Class").
+  const { calendarEvents, occupiedDatesByCourse } = useMemo(() => {
     const events: CalendarEvent[] = [];
+    const occupiedDatesByCourse: Record<string, Set<string>> = {};
 
     courses.forEach(course => {
       if (!course.data) return;
 
       const courseData = course.data as CourseData;
+      const occupiedDates = new Set<string>();
+      occupiedDatesByCourse[course.id] = occupiedDates;
 
-      // Add schedule items (classes)
-      courseData.schedule.forEach((item: ScheduleItem) => {
-        try {
-          const eventDate = parseISO(item.date);
+      // Add schedule items (classes). Uses resolved dates so session-numbered
+      // entries show up once the course has a start date.
+      resolveScheduleDates(courseData).forEach((item, index) => {
+        if (item.resolvedDate) {
+          occupiedDates.add(format(item.resolvedDate, 'yyyy-MM-dd'));
           events.push({
-            id: `${course.id}-schedule-${item.date}`,
-            date: eventDate,
+            id: `${course.id}-schedule-${index}-${item.resolvedDate.toISOString()}`,
+            date: item.resolvedDate,
             type: 'class',
             title: item.topic,
             course: courseData.course.title,
             courseCode: courseData.course.code,
             activities: item.activities,
           });
+        }
 
-          // Add deliverables
-          item.deliverables.forEach((deliverable: Deliverable) => {
-            try {
-              const dueDate = parseISO(deliverable.due);
+        // Add deliverables
+        item.deliverables.forEach((deliverable: Deliverable) => {
+          try {
+            const dueDate = parseISO(deliverable.due);
+            if (isValid(dueDate)) {
               events.push({
                 id: `${course.id}-deliverable-${deliverable.name}-${deliverable.due}`,
                 date: dueDate,
@@ -67,35 +78,35 @@ const CalendarView = () => {
                 courseCode: courseData.course.code,
                 deliverable,
               });
-            } catch {
-              // Skip invalid dates
             }
-          });
-        } catch {
-          // Skip invalid dates
-        }
+          } catch {
+            // Skip invalid dates
+          }
+        });
       });
 
       // Add important dates
       courseData.important_dates?.forEach((importantDate) => {
         try {
           const eventDate = parseISO(importantDate.date);
-          events.push({
-            id: `${course.id}-important-${importantDate.name}-${importantDate.date}`,
-            date: eventDate,
-            type: 'important_date',
-            title: importantDate.name,
-            course: courseData.course.title,
-            courseCode: courseData.course.code,
-            eventType: importantDate.type,
-          });
+          if (isValid(eventDate)) {
+            events.push({
+              id: `${course.id}-important-${importantDate.name}-${importantDate.date}`,
+              date: eventDate,
+              type: 'important_date',
+              title: importantDate.name,
+              course: courseData.course.title,
+              courseCode: courseData.course.code,
+              eventType: importantDate.type,
+            });
+          }
         } catch {
           // Skip invalid dates
         }
       });
     });
 
-    return events.sort((a, b) => a.date.getTime() - b.date.getTime());
+    return { calendarEvents: events.sort((a, b) => a.date.getTime() - b.date.getTime()), occupiedDatesByCourse };
   }, [courses]);
 
   // Expand recurring weekly meeting times into individual class occurrences.
@@ -117,8 +128,12 @@ const CalendarView = () => {
     courses.forEach(course => {
       if (!course.data) return;
       const courseData = course.data as CourseData;
+      const occupiedDates = occupiedDatesByCourse[course.id];
 
       occurrencesInRange(courseData.meeting_times ?? [], rangeStart, rangeEnd).forEach(({ date, meeting }) => {
+        // Skip: a real schedule entry already represents this class on this day.
+        if (occupiedDates?.has(format(date, 'yyyy-MM-dd'))) return;
+
         events.push({
           id: `${course.id}-meeting-${meeting.day}-${meeting.start_time}-${date.toISOString()}`,
           date,
@@ -131,7 +146,7 @@ const CalendarView = () => {
     });
 
     return events;
-  }, [courses, currentMonth]);
+  }, [courses, currentMonth, occupiedDatesByCourse]);
 
   const allEvents = useMemo(
     () => [...calendarEvents, ...recurringClassEvents].sort((a, b) => a.date.getTime() - b.date.getTime()),

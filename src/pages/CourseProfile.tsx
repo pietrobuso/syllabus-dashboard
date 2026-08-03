@@ -14,6 +14,7 @@ import { useCourses } from "@/hooks/useCourses";
 import { useToast } from "@/hooks/use-toast";
 import { FileText, Calendar, BarChart3, Calculator, Users, ArrowLeft, Edit3, Layers } from "lucide-react";
 import { CourseData } from "@/types/course";
+import { resolveScheduleDates } from "@/utils/scheduleDates";
 
 const CourseProfile = () => {
   const { courseId } = useParams<{ courseId: string }>();
@@ -45,6 +46,7 @@ const CourseProfile = () => {
   }
 
   const courseData = course.data;
+  const resolvedSchedule = resolveScheduleDates(courseData);
 
   const handleSaveCourse = (updatedData: CourseData) => {
     updateCourse(courseId, updatedData);
@@ -128,7 +130,7 @@ const CourseProfile = () => {
 
             <TabsContent value="schedule" className="space-y-6">
               <MeetingTimesCard meetingTimes={courseData.meeting_times} />
-              <ScheduleView schedule={courseData.schedule} />
+              <ScheduleView schedule={resolvedSchedule} />
             </TabsContent>
 
             <TabsContent value="content" className="space-y-6">

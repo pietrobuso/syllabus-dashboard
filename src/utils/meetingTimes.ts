@@ -76,6 +76,29 @@ export const occurrencesInRange = (
   return occurrences.sort((a, b) => a.date.getTime() - b.date.getTime());
 };
 
+/**
+ * The nth (1-based) time this class meets on or after `from`, counting
+ * across all of its meeting times. For a Mon/Wed class starting on a
+ * Monday: n=1 is that Monday, n=2 is Wednesday, n=3 is the next Monday.
+ * Returns null if n < 1 or no meeting time is usable.
+ */
+export const nthOccurrence = (
+  meetings: MeetingTime[],
+  from: Date,
+  n: number
+): Date | null => {
+  if (n < 1 || meetings.length === 0) return null;
+
+  // n sessions never span more than n weeks (worst case: one meeting per
+  // week), so this window is always wide enough. +14d absorbs the partial
+  // week at the start.
+  const rangeEnd = new Date(from);
+  rangeEnd.setDate(rangeEnd.getDate() + n * 7 + 14);
+
+  const occurrences = occurrencesInRange(meetings, from, rangeEnd);
+  return occurrences[n - 1]?.date ?? null;
+};
+
 export const formatTime12h = (time: string): string => {
   const parsed = parseTime(time);
   if (!parsed) return time;

@@ -16,6 +16,7 @@ describe("normalizeCourseData", () => {
 
     expect(result.content).toEqual([]);
     expect(result.meeting_times).toEqual([]);
+    expect(result.course.start_date).toBe("");
     expect(result.course.title).toBe("Old Course");
   });
 

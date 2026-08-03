@@ -83,7 +83,8 @@ const createFallbackData = (text: string): CourseData => {
       title: titleMatch?.[1]?.trim() || "",
       code: codeMatch?.[1]?.trim() || "",
       semester: semesterMatch ? `${semesterMatch[1]} ${semesterMatch[2]}` : "",
-      institution: ""
+      institution: "",
+      start_date: ""
     },
     instructors: emailMatch ? [{
       name: "",
@@ -110,6 +111,7 @@ const VALID_ACTIVITY_TYPES = new Set(["lecture", "lab", "quiz", "exam", "assignm
 const VALID_DELIVERABLE_TYPES = new Set(["assignment", "quiz", "exam", "project"]);
 const VALID_DAYS = new Set(["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]);
 const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
+const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
  * Validates and normalizes AI-extracted data to ensure type safety.
@@ -125,7 +127,8 @@ export const validateAndCleanData = (data: any): CourseData => {
       title: data.course?.title || "",
       code: data.course?.code || "",
       semester: data.course?.semester || "",
-      institution: data.course?.institution || ""
+      institution: data.course?.institution || "",
+      start_date: ISO_DATE_PATTERN.test(data.course?.start_date) ? data.course.start_date : ""
     },
     instructors: Array.isArray(data.instructors)
       ? data.instructors

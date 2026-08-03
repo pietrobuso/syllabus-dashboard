@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { nextOccurrence, occurrencesInRange, formatTime12h } from "./meetingTimes";
+import { nextOccurrence, occurrencesInRange, nthOccurrence, formatTime12h } from "./meetingTimes";
 import { MeetingTime } from "@/types/course";
 
 // Wednesday 2026-01-07
@@ -48,6 +48,39 @@ describe("occurrencesInRange", () => {
     ];
     const occurrences = occurrencesInRange(meetings, new Date(2026, 0, 1), new Date(2026, 0, 7));
     expect(occurrences).toHaveLength(1);
+  });
+});
+
+describe("nthOccurrence", () => {
+  const monday = new Date(2026, 0, 5, 0, 0, 0, 0); // Monday 2026-01-05
+
+  it("counts sessions across all meeting days for a twice-a-week class", () => {
+    const meetings: MeetingTime[] = [
+      { day: "monday", start_time: "10:00", end_time: "11:00" },
+      { day: "wednesday", start_time: "10:00", end_time: "11:00" },
+    ];
+    expect(nthOccurrence(meetings, monday, 1)?.getDate()).toBe(5);
+    expect(nthOccurrence(meetings, monday, 2)?.getDate()).toBe(7);
+    expect(nthOccurrence(meetings, monday, 3)?.getDate()).toBe(12);
+  });
+
+  it("advances a week per session for a once-a-week class", () => {
+    const meetings: MeetingTime[] = [{ day: "monday", start_time: "10:00", end_time: "11:00" }];
+    expect(nthOccurrence(meetings, monday, 4)?.getDate()).toBe(26);
+  });
+
+  it("stays correct far into the term", () => {
+    const meetings: MeetingTime[] = [{ day: "monday", start_time: "10:00", end_time: "11:00" }];
+    const session15 = nthOccurrence(meetings, monday, 15);
+    // 14 weeks after Jan 5 2026 = April 13 2026
+    expect(session15?.getMonth()).toBe(3);
+    expect(session15?.getDate()).toBe(13);
+  });
+
+  it("returns null for n < 1 or when there are no meeting times", () => {
+    const meetings: MeetingTime[] = [{ day: "monday", start_time: "10:00", end_time: "11:00" }];
+    expect(nthOccurrence(meetings, monday, 0)).toBeNull();
+    expect(nthOccurrence([], monday, 1)).toBeNull();
   });
 });
 
