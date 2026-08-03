@@ -1,9 +1,34 @@
+import { GradeEntry, GradingComponent } from "@/types/course";
+
+export const DEFAULT_TARGET_GRADE = 6;
+export const DEFAULT_MAX_POINTS = 10;
+
 export interface ScoreEntry {
   component: string;
   weight: number;
   score: number | null;
   maxPoints: number;
 }
+
+/**
+ * Pairs the syllabus's grading components with any scores the student
+ * has already saved, matching them by component name. A component the
+ * student hasn't scored yet starts blank; a saved score whose component
+ * no longer exists in the syllabus is dropped.
+ */
+export const buildScoreEntries = (
+  grading: GradingComponent[],
+  saved: GradeEntry[]
+): ScoreEntry[] =>
+  grading.map((component) => {
+    const stored = saved.find((entry) => entry.component === component.component);
+    return {
+      component: component.component,
+      weight: component.weight,
+      score: stored?.score ?? null,
+      maxPoints: stored?.maxPoints ?? DEFAULT_MAX_POINTS,
+    };
+  });
 
 export interface RequiredScoreResult {
   /** Score needed in each remaining component, on a 0-10 scale. */

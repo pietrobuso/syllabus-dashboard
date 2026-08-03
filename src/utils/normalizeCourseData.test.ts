@@ -18,6 +18,22 @@ describe("normalizeCourseData", () => {
     expect(result.meeting_times).toEqual([]);
     expect(result.course.start_date).toBe("");
     expect(result.course.title).toBe("Old Course");
+    expect(result.grades).toEqual({ target: 6, entries: [] });
+  });
+
+  it("keeps saved grades and drops malformed entries", () => {
+    const result = normalizeCourseData({
+      grades: {
+        target: 7.5,
+        entries: [
+          { component: "Exams", score: 8, maxPoints: 10 },
+          { score: 5, maxPoints: 10 },
+        ],
+      },
+    });
+
+    expect(result.grades.target).toBe(7.5);
+    expect(result.grades.entries).toEqual([{ component: "Exams", score: 8, maxPoints: 10 }]);
   });
 
   it("leaves existing free-text content and meeting_times untouched", () => {

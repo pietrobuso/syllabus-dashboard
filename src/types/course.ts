@@ -45,6 +45,20 @@ export interface ScheduleItem {
 
 export type ActivityType = 'quiz' | 'exam' | 'assignment' | 'monitored' | 'lecture' | 'lab';
 
+/** A score the student entered themselves - not extracted from the syllabus. */
+export interface GradeEntry {
+  /** Matches GradingComponent.component, which is how they're paired up. */
+  component: string;
+  score: number | null;
+  maxPoints: number;
+}
+
+export interface StudentGrades {
+  /** Final grade the student is aiming for, 0-10. */
+  target: number;
+  entries: GradeEntry[];
+}
+
 export type DayOfWeek = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
 
 export interface MeetingTime {
@@ -77,4 +91,9 @@ export interface CourseData {
     date: string;
     type: 'exam' | 'deadline' | 'quiz' | 'project' | 'break' | 'other';
   }[];
+  /**
+   * The student's own scores for this course. Everything else in
+   * CourseData describes the syllabus; this is the one part they own.
+   */
+  grades: StudentGrades;
 }
