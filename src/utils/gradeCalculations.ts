@@ -39,6 +39,15 @@ export interface RequiredScoreResult {
   alreadyAchieved: boolean;
 }
 
+export type GradeStatus = "on-track" | "close" | "behind";
+
+/** How a grade sits against the target the student set for themselves. */
+export const gradeStatus = (grade: number, target: number): GradeStatus => {
+  if (grade >= target) return "on-track";
+  if (grade >= target - 1) return "close";
+  return "behind";
+};
+
 export const isGraded = (entry: ScoreEntry): boolean =>
   entry.score !== null && entry.score >= 0 && entry.maxPoints > 0;
 

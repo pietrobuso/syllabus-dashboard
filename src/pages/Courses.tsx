@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { DocumentUpload } from "@/components/DocumentUpload";
 import { CourseDataEditor } from "@/components/CourseDataEditor";
+import { CourseGradeSummary } from "@/components/CourseGradeSummary";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -225,6 +226,14 @@ const Courses = () => {
                     </div>
                   </CardHeader>
                   <CardContent className="pt-0">
+                    <div className="p-3 mb-4 rounded-lg bg-muted/40 border border-border/50">
+                      <CourseGradeSummary
+                        grading={course.data.grading}
+                        grades={course.data.grades}
+                        variant="compact"
+                      />
+                    </div>
+
                     <div className="space-y-3 mb-4">
                       {course.semester && (
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">

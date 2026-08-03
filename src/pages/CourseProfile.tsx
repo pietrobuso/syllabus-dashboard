@@ -7,6 +7,7 @@ import { MeetingTimesCard } from "@/components/MeetingTimesCard";
 import { GradeBreakdown } from "@/components/GradeBreakdown";
 import { GradeCalculator } from "@/components/GradeCalculator";
 import { ContactInfo } from "@/components/ContactInfo";
+import { CourseOverview } from "@/components/CourseOverview";
 import { CourseDataEditor } from "@/components/CourseDataEditor";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -160,10 +161,7 @@ const CourseProfile = () => {
             </TabsContent>
 
             <TabsContent value="overview" className="space-y-6">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <GradeBreakdown grading={courseData.grading} />
-                <ContactInfo instructors={courseData.instructors} />
-              </div>
+              <CourseOverview courseData={courseData} schedule={resolvedSchedule} />
             </TabsContent>
           </Tabs>
         </div>

@@ -11,9 +11,11 @@ import {
   calculateRequiredScore,
   entryGrade,
   isGraded,
+  gradeStatus,
   DEFAULT_MAX_POINTS,
   ScoreEntry,
 } from "@/utils/gradeCalculations";
+import { GRADE_STATUS_TEXT_CLASS } from "@/components/CourseGradeSummary";
 import { cn } from "@/lib/utils";
 
 interface GradeCalculatorProps {
@@ -78,11 +80,7 @@ export const GradeCalculator = ({ grading, grades, onGradesChange }: GradeCalcul
 
   // Colour is judged against the target the student actually set, not
   // against fixed thresholds.
-  const gradeColor = (grade: number) => {
-    if (grade >= targetGrade) return "text-success";
-    if (grade >= targetGrade - 1) return "text-warning";
-    return "text-destructive";
-  };
+  const gradeColor = (grade: number) => GRADE_STATUS_TEXT_CLASS[gradeStatus(grade, targetGrade)];
 
   return (
     <Card className="shadow-soft">
