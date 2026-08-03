@@ -1,391 +1,242 @@
-import { useState, useMemo } from "react";
-import { Calendar } from "@/components/ui/calendar";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { useMemo, useState } from "react";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { useCourses } from "@/hooks/useCourses";
-import { ActivityBadge } from "@/components/ActivityBadge";
-import { format, parseISO, isSameDay, startOfMonth, endOfMonth, addDays, isValid } from "date-fns";
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Clock, BookOpen } from "lucide-react";
-import { ActivityType, CourseData, Deliverable } from "@/types/course";
-import { occurrencesInRange } from "@/utils/meetingTimes";
-import { resolveScheduleDates } from "@/utils/scheduleDates";
+import {
+  addDays,
+  addMonths,
+  eachDayOfInterval,
+  endOfMonth,
+  endOfWeek,
+  format,
+  isSameDay,
+  isSameMonth,
+  startOfMonth,
+  startOfWeek,
+  subMonths,
+} from "date-fns";
+import { ChevronLeft, ChevronRight, CalendarDays } from "lucide-react";
+import { CourseData } from "@/types/course";
+import { buildCalendarEvents, CalendarEvent } from "@/utils/calendarEvents";
+import { buildCourseColorMap, FALLBACK_COURSE_COLOR } from "@/utils/courseColors";
+import { TimeGrid } from "@/components/calendar/TimeGrid";
+import { MonthGrid } from "@/components/calendar/MonthGrid";
+import { EventDetailsDialog } from "@/components/calendar/EventDetailsDialog";
+import { EventIcon } from "@/components/calendar/EventIcon";
+import { cn } from "@/lib/utils";
 
-const UPCOMING_WINDOW_DAYS = 60;
+type ViewMode = "month" | "week" | "day";
 
-interface CalendarEvent {
-  id: string;
-  date: Date;
-  type: 'class' | 'deliverable' | 'important_date';
-  title: string;
-  course: string;
-  courseCode: string;
-  activities?: ActivityType[];
-  deliverable?: Deliverable;
-  eventType?: 'exam' | 'deadline' | 'quiz' | 'project' | 'break' | 'other';
-  description?: string;
-}
+/** How far past the visible range to generate recurring meetings. */
+const RECURRING_PADDING_DAYS = 45;
 
 const CalendarView = () => {
   const { courses } = useCourses();
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
+  const [viewMode, setViewMode] = useState<ViewMode>("week");
+  const [anchorDate, setAnchorDate] = useState<Date>(new Date());
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
 
-  // Generate calendar events from all courses. Also tracks, per course,
-  // which calendar days already have a real schedule entry - a recurring
-  // meeting time is only a stand-in for "class happens here" and must be
-  // skipped on days the schedule already covers, or the same class shows
-  // up twice (once with its real topic, once as a generic "X Class").
-  const { calendarEvents, occupiedDatesByCourse } = useMemo(() => {
-    const events: CalendarEvent[] = [];
-    const occupiedDatesByCourse: Record<string, Set<string>> = {};
-
-    courses.forEach(course => {
-      if (!course.data) return;
-
-      const courseData = course.data as CourseData;
-      const occupiedDates = new Set<string>();
-      occupiedDatesByCourse[course.id] = occupiedDates;
-
-      // Add schedule items (classes). Uses resolved dates so session-numbered
-      // entries show up once the course has a start date.
-      resolveScheduleDates(courseData).forEach((item, index) => {
-        if (item.resolvedDate) {
-          occupiedDates.add(format(item.resolvedDate, 'yyyy-MM-dd'));
-          events.push({
-            id: `${course.id}-schedule-${index}-${item.resolvedDate.toISOString()}`,
-            date: item.resolvedDate,
-            type: 'class',
-            title: item.topic,
-            course: courseData.course.title,
-            courseCode: courseData.course.code,
-            activities: item.activities,
-          });
-        }
-
-        // Add deliverables
-        item.deliverables.forEach((deliverable: Deliverable) => {
-          try {
-            const dueDate = parseISO(deliverable.due);
-            if (isValid(dueDate)) {
-              events.push({
-                id: `${course.id}-deliverable-${deliverable.name}-${deliverable.due}`,
-                date: dueDate,
-                type: 'deliverable',
-                title: `${deliverable.name} Due`,
-                course: courseData.course.title,
-                courseCode: courseData.course.code,
-                deliverable,
-              });
-            }
-          } catch {
-            // Skip invalid dates
-          }
-        });
-      });
-
-      // Add important dates
-      courseData.important_dates?.forEach((importantDate) => {
-        try {
-          const eventDate = parseISO(importantDate.date);
-          if (isValid(eventDate)) {
-            events.push({
-              id: `${course.id}-important-${importantDate.name}-${importantDate.date}`,
-              date: eventDate,
-              type: 'important_date',
-              title: importantDate.name,
-              course: courseData.course.title,
-              courseCode: courseData.course.code,
-              eventType: importantDate.type,
-            });
-          }
-        } catch {
-          // Skip invalid dates
-        }
-      });
-    });
-
-    return { calendarEvents: events.sort((a, b) => a.date.getTime() - b.date.getTime()), occupiedDatesByCourse };
-  }, [courses]);
-
-  // Expand recurring weekly meeting times into individual class occurrences.
-  // Covers both the currently visible month (so the grid/selected-day list
-  // stay correct while navigating) and a rolling window from today (so the
-  // "Upcoming Events" summary below is correct regardless of which month is
-  // currently displayed).
-  const recurringClassEvents = useMemo(() => {
-    const today = new Date();
-    const monthStart = startOfMonth(currentMonth);
-    const monthEnd = endOfMonth(currentMonth);
-    const upcomingEnd = addDays(today, UPCOMING_WINDOW_DAYS);
-
-    const rangeStart = today < monthStart ? today : monthStart;
-    const rangeEnd = upcomingEnd > monthEnd ? upcomingEnd : monthEnd;
-
-    const events: CalendarEvent[] = [];
-
-    courses.forEach(course => {
-      if (!course.data) return;
-      const courseData = course.data as CourseData;
-      const occupiedDates = occupiedDatesByCourse[course.id];
-
-      occurrencesInRange(courseData.meeting_times ?? [], rangeStart, rangeEnd).forEach(({ date, meeting }) => {
-        // Skip: a real schedule entry already represents this class on this day.
-        if (occupiedDates?.has(format(date, 'yyyy-MM-dd'))) return;
-
-        events.push({
-          id: `${course.id}-meeting-${meeting.day}-${meeting.start_time}-${date.toISOString()}`,
-          date,
-          type: 'class',
-          title: meeting.label || `${courseData.course.code || courseData.course.title} Class`,
-          course: courseData.course.title,
-          courseCode: courseData.course.code,
-        });
-      });
-    });
-
-    return events;
-  }, [courses, currentMonth, occupiedDatesByCourse]);
-
-  const allEvents = useMemo(
-    () => [...calendarEvents, ...recurringClassEvents].sort((a, b) => a.date.getTime() - b.date.getTime()),
-    [calendarEvents, recurringClassEvents]
+  const colorMap = useMemo(
+    () => buildCourseColorMap(courses.map(course => course.id)),
+    [courses]
   );
 
-  // Get events for selected date
-  const selectedDateEvents = useMemo(() => {
-    if (!selectedDate) return [];
-    return allEvents.filter(event => isSameDay(event.date, selectedDate));
-  }, [allEvents, selectedDate]);
+  // The days the current view covers.
+  const visibleDays = useMemo(() => {
+    if (viewMode === "day") return [anchorDate];
+    if (viewMode === "week") {
+      return eachDayOfInterval({ start: startOfWeek(anchorDate), end: endOfWeek(anchorDate) });
+    }
+    return eachDayOfInterval({
+      start: startOfWeek(startOfMonth(anchorDate)),
+      end: endOfWeek(endOfMonth(anchorDate)),
+    });
+  }, [viewMode, anchorDate]);
 
-  // Get events for current month (for calendar display)
-  const monthEvents = useMemo(() => {
-    const monthStart = startOfMonth(currentMonth);
-    const monthEnd = endOfMonth(currentMonth);
-    return allEvents.filter(event =>
-      event.date >= monthStart && event.date <= monthEnd
+  const events = useMemo(() => {
+    const rangeStart = addDays(visibleDays[0], -RECURRING_PADDING_DAYS);
+    const rangeEnd = addDays(visibleDays[visibleDays.length - 1], RECURRING_PADDING_DAYS);
+
+    return buildCalendarEvents(
+      courses.map(course => ({ id: course.id, data: course.data as CourseData })),
+      rangeStart,
+      rangeEnd
     );
-  }, [allEvents, currentMonth]);
+  }, [courses, visibleDays]);
 
-  // Check if a date has events
-  const hasEvents = (date: Date) => {
-    return allEvents.some(event => isSameDay(event.date, date));
-  };
+  const visibleEvents = useMemo(
+    () => events.filter(event => visibleDays.some(day => isSameDay(day, event.date))),
+    [events, visibleDays]
+  );
 
-  const getEventTypeColor = (event: CalendarEvent) => {
-    switch (event.type) {
-      case 'class':
-        return 'bg-primary/10 text-primary border-primary/20';
-      case 'deliverable':
-        return 'bg-accent/10 text-accent border-accent/20';
-      case 'important_date':
-        switch (event.eventType) {
-          case 'exam':
-            return 'bg-destructive/10 text-destructive border-destructive/20';
-          case 'deadline':
-            return 'bg-warning/10 text-warning border-warning/20';
-          default:
-            return 'bg-muted/10 text-muted-foreground border-muted/20';
-        }
-      default:
-        return 'bg-muted/10 text-muted-foreground border-muted/20';
+  const upcomingEvents = useMemo(() => {
+    const now = new Date();
+    return events.filter(event => event.date >= now).slice(0, 8);
+  }, [events]);
+
+  const step = (direction: 1 | -1) => {
+    if (viewMode === "month") {
+      setAnchorDate(current => (direction === 1 ? addMonths(current, 1) : subMonths(current, 1)));
+    } else {
+      setAnchorDate(current => addDays(current, direction * (viewMode === "week" ? 7 : 1)));
     }
   };
 
-  const getEventIcon = (event: CalendarEvent) => {
-    switch (event.type) {
-      case 'class':
-        return <BookOpen className="w-4 h-4" />;
-      case 'deliverable':
-        return <Clock className="w-4 h-4" />;
-      case 'important_date':
-        return <CalendarIcon className="w-4 h-4" />;
-      default:
-        return <CalendarIcon className="w-4 h-4" />;
-    }
+  const rangeLabel = useMemo(() => {
+    if (viewMode === "day") return format(anchorDate, "EEEE, d MMMM yyyy");
+    if (viewMode === "month") return format(anchorDate, "MMMM yyyy");
+
+    const first = visibleDays[0];
+    const last = visibleDays[visibleDays.length - 1];
+    return isSameMonth(first, last)
+      ? `${format(first, "d")} – ${format(last, "d MMM yyyy")}`
+      : `${format(first, "d MMM")} – ${format(last, "d MMM yyyy")}`;
+  }, [viewMode, anchorDate, visibleDays]);
+
+  const openDay = (day: Date) => {
+    setAnchorDate(day);
+    setViewMode("day");
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/30">
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-7xl mx-auto">
-          {/* Header */}
-          <div className="mb-8">
+          <div className="mb-6">
             <h1 className="text-3xl font-bold text-foreground mb-2">Course Calendar</h1>
             <p className="text-muted-foreground">
-              View all your courses, classes, and deadlines in one place
+              All your classes, deadlines and exams, hour by hour
             </p>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Calendar */}
-            <div className="lg:col-span-2">
+          <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
+            <div className="xl:col-span-3">
               <Card className="shadow-soft">
-                <CardHeader className="pb-4">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-xl">
-                      {format(currentMonth, "MMMM yyyy")}
-                    </CardTitle>
+                <CardHeader className="pb-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1))}
-                      >
+                      <Button variant="outline" size="sm" onClick={() => step(-1)} aria-label="Previous">
                         <ChevronLeft className="w-4 h-4" />
                       </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setCurrentMonth(new Date())}
-                      >
+                      <Button variant="outline" size="sm" onClick={() => setAnchorDate(new Date())}>
                         Today
                       </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1))}
-                      >
+                      <Button variant="outline" size="sm" onClick={() => step(1)} aria-label="Next">
                         <ChevronRight className="w-4 h-4" />
                       </Button>
+                      <span className="ml-2 font-semibold text-foreground">{rangeLabel}</span>
+                    </div>
+
+                    <div className="flex items-center gap-1 bg-muted/50 rounded-lg p-1">
+                      {(["day", "week", "month"] as ViewMode[]).map(mode => (
+                        <Button
+                          key={mode}
+                          variant={viewMode === mode ? "default" : "ghost"}
+                          size="sm"
+                          className="capitalize"
+                          onClick={() => setViewMode(mode)}
+                        >
+                          {mode}
+                        </Button>
+                      ))}
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent>
-                  <Calendar
-                    mode="single"
-                    selected={selectedDate}
-                    onSelect={(date) => date && setSelectedDate(date)}
-                    month={currentMonth}
-                    onMonthChange={setCurrentMonth}
-                    className="pointer-events-auto"
-                    modifiers={{
-                      hasEvents: (date) => hasEvents(date)
-                    }}
-                    modifiersStyles={{
-                      hasEvents: {
-                        backgroundColor: 'hsl(var(--primary) / 0.1)',
-                        color: 'hsl(var(--primary))',
-                        fontWeight: '600'
-                      }
-                    }}
-                  />
+
+                <CardContent className="p-0 sm:p-2">
+                  {viewMode === "month" ? (
+                    <MonthGrid
+                      month={anchorDate}
+                      events={visibleEvents}
+                      colorMap={colorMap}
+                      onSelectEvent={setSelectedEvent}
+                      onSelectDay={openDay}
+                      selectedEventId={selectedEvent?.id}
+                    />
+                  ) : (
+                    <TimeGrid
+                      days={visibleDays}
+                      events={visibleEvents}
+                      colorMap={colorMap}
+                      onSelectEvent={setSelectedEvent}
+                      selectedEventId={selectedEvent?.id}
+                    />
+                  )}
                 </CardContent>
               </Card>
             </div>
 
-            {/* Selected Date Events */}
-            <div>
+            {/* Sidebar: course legend + what's coming up */}
+            <div className="space-y-4">
+              {courses.length > 0 && (
+                <Card className="shadow-soft">
+                  <CardHeader className="pb-3">
+                    <h2 className="font-semibold text-foreground">My Courses</h2>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    {courses.map(course => (
+                      <div key={course.id} className="flex items-center gap-2 text-sm">
+                        <span
+                          className={cn(
+                            "w-3 h-3 rounded-full shrink-0",
+                            (colorMap[course.id] ?? FALLBACK_COURSE_COLOR).dot
+                          )}
+                        />
+                        <span className="truncate text-foreground">{course.name}</span>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              )}
+
               <Card className="shadow-soft">
-                <CardHeader>
-                  <CardTitle className="text-lg">
-                    {selectedDate ? format(selectedDate, "EEEE, MMMM d") : "Select a date"}
-                  </CardTitle>
+                <CardHeader className="pb-3">
+                  <h2 className="font-semibold text-foreground">Coming Up</h2>
                 </CardHeader>
                 <CardContent>
-                  {selectedDateEvents.length > 0 ? (
-                    <div className="space-y-3">
-                      {selectedDateEvents.map((event) => (
-                        <div
-                          key={event.id}
-                          className={`p-3 rounded-lg border transition-colors ${getEventTypeColor(event)}`}
-                        >
-                          <div className="flex items-start gap-2">
-                            {getEventIcon(event)}
-                            <div className="flex-1 min-w-0">
-                              <p className="font-medium text-sm truncate">{event.title}</p>
-                              <p className="text-xs opacity-80 truncate">
-                                {event.courseCode} - {event.course}
+                  {upcomingEvents.length > 0 ? (
+                    <div className="space-y-2">
+                      {upcomingEvents.map(event => {
+                        const color = colorMap[event.courseId] ?? FALLBACK_COURSE_COLOR;
+                        return (
+                          <button
+                            key={event.id}
+                            onClick={() => setSelectedEvent(event)}
+                            className={cn(
+                              "w-full flex items-start gap-2 p-2 rounded-lg border text-left transition-colors",
+                              color.chip
+                            )}
+                          >
+                            <EventIcon event={event} className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-medium truncate">{event.title}</p>
+                              <p className="text-xs opacity-80">
+                                {format(event.date, "EEE, d MMM")}
+                                {event.start ? ` · ${format(event.start, "h:mm a")}` : ""}
                               </p>
-                              {event.activities && event.activities.length > 0 && (
-                                <div className="flex gap-1 mt-2 flex-wrap">
-                                  {event.activities.map((activity, idx) => (
-                                    <ActivityBadge key={idx} type={activity} />
-                                  ))}
-                                </div>
-                              )}
-                              {event.deliverable && (
-                                <Badge variant="secondary" className="mt-2 text-xs">
-                                  {event.deliverable.type}
-                                </Badge>
-                              )}
                             </div>
-                          </div>
-                        </div>
-                      ))}
+                          </button>
+                        );
+                      })}
                     </div>
                   ) : (
-                    <p className="text-muted-foreground text-sm text-center py-4">
-                      No events scheduled for this date
-                    </p>
+                    <div className="text-center py-6 text-muted-foreground">
+                      <CalendarDays className="w-10 h-10 mx-auto mb-2 opacity-50" />
+                      <p className="text-sm">Nothing scheduled yet.</p>
+                    </div>
                   )}
-                </CardContent>
-              </Card>
-
-              {/* Legend */}
-              <Card className="shadow-soft mt-4">
-                <CardHeader>
-                  <CardTitle className="text-sm">Legend</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded bg-primary/20 border border-primary/30"></div>
-                    <span className="text-xs text-muted-foreground">Classes</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded bg-accent/20 border border-accent/30"></div>
-                    <span className="text-xs text-muted-foreground">Deliverables</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded bg-destructive/20 border border-destructive/30"></div>
-                    <span className="text-xs text-muted-foreground">Exams</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded bg-warning/20 border border-warning/30"></div>
-                    <span className="text-xs text-muted-foreground">Deadlines</span>
-                  </div>
                 </CardContent>
               </Card>
             </div>
           </div>
-
-          {/* Upcoming Events Summary */}
-          {allEvents.length > 0 && (
-            <Card className="shadow-soft mt-6">
-              <CardHeader>
-                <CardTitle>Upcoming Events</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {allEvents
-                    .filter(event => event.date >= new Date())
-                    .slice(0, 6)
-                    .map((event) => (
-                      <div
-                        key={event.id}
-                        className={`p-3 rounded-lg border transition-colors ${getEventTypeColor(event)}`}
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-sm truncate">{event.title}</p>
-                            <p className="text-xs opacity-80 truncate">
-                              {event.courseCode} - {event.course}
-                            </p>
-                            <p className="text-xs opacity-60 mt-1">
-                              {format(event.date, "MMM d, yyyy")}
-                            </p>
-                          </div>
-                          {getEventIcon(event)}
-                        </div>
-                      </div>
-                    ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
         </div>
       </div>
+
+      <EventDetailsDialog
+        event={selectedEvent}
+        colorMap={colorMap}
+        onOpenChange={open => !open && setSelectedEvent(null)}
+      />
     </div>
   );
 };

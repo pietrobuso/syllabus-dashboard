@@ -99,6 +99,24 @@ export const nthOccurrence = (
   return occurrences[n - 1]?.date ?? null;
 };
 
+/**
+ * The meeting time that falls on the same weekday as `date`, if any.
+ * Used to give a schedule entry a start/end time for the hour grid.
+ */
+export const meetingOnWeekday = (meetings: MeetingTime[], date: Date): MeetingTime | null =>
+  meetings.find(
+    meeting => DAY_INDEX[meeting.day] === date.getDay() && parseTime(meeting.start_time) !== null
+  ) ?? null;
+
+/** Applies an "HH:MM" time onto the given day. Returns null if unparseable. */
+export const applyTimeToDate = (day: Date, time: string): Date | null => {
+  const parsed = parseTime(time);
+  if (!parsed) return null;
+  const result = new Date(day);
+  result.setHours(parsed.hours, parsed.minutes, 0, 0);
+  return result;
+};
+
 export const formatTime12h = (time: string): string => {
   const parsed = parseTime(time);
   if (!parsed) return time;
