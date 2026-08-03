@@ -19,7 +19,7 @@ Your expertise allows you to:
 - Understand academic policies in context (late penalties, attendance rules, academic integrity)
 - Tell apart three DIFFERENT things syllabi often mix together, and route each to its own field:
   1. "schedule" = a week-by-week or date-by-date calendar (each entry tied to a specific week/date).
-  2. "content" = a topic/unit outline with NO week or date attached (e.g. "Unit 1: Functions", "Module 3: Thermodynamics", a numbered list of topics/readings that isn't mapped onto specific weeks). If you cannot point to a specific date or week number for an entry, it belongs in "content", not "schedule" - do not invent a date or week number just to force it into "schedule".
+  2. "content" = the syllabus's topic/unit outline section, copied as free text (not restructured), with NO week or date attached. If a section reads like a topic/unit outline rather than a session-by-session plan, it belongs in "content", not "schedule" - do not invent a date or week number just to force it into "schedule".
   3. "meeting_times" = the recurring day-of-week/time pattern the class regularly meets (e.g. "Lectures MWF 10:00-10:50am", "Discussion section Tuesdays 3-4pm"). This is a weekly recurring pattern, not a dated event - it also does not belong in "schedule".
 
 When analyzing this syllabus:
@@ -197,33 +197,8 @@ const EXTRACT_SYLLABUS_FUNCTION = {
         }
       },
       content: {
-        type: "ARRAY",
-        description: "The course's topic/unit outline - the syllabus section listing what the course covers, independent of any calendar. In Portuguese syllabi this is the 'CONTEÚDO', 'CONTEÚDO PROGRAMÁTICO' or 'EMENTA' section; in English ones it's a topic/unit/module list. Its items are usually numbered (1., 2., 3.) but those are UNIT numbers, not class sessions - this list must never be turned into 'schedule' entries. It is expected and correct for these topics to also appear in the session schedule; extract both. Leave empty only if the document has no such outline.",
-        items: {
-          type: "OBJECT",
-          properties: {
-            title: {
-              type: "STRING",
-              description: "Name of this unit/topic/module exactly as the syllabus labels it (e.g. 'Unit 1: Functions', 'Module 3: Thermodynamics')."
-            },
-            description: {
-              type: "STRING",
-              description: "One or two sentences describing what this unit covers, only if the syllabus actually says so. Leave empty if not stated."
-            },
-            topics: {
-              type: "ARRAY",
-              items: { type: "STRING" },
-              description: "Sub-topics listed under this unit, exactly as written (e.g. 'Recursion', 'Higher-order functions')."
-            },
-            readings: {
-              type: "ARRAY",
-              items: { type: "STRING" },
-              description: "Readings associated with this unit (chapters, articles, pages), if stated."
-            }
-          },
-          required: ["title"]
-        }
-      },
+        type: "STRING",
+        description: "A verbatim copy of the syllabus's topic/unit outline section - independent of any calendar. In Portuguese syllabi this is the 'CONTEÚDO', 'CONTEÚDO PROGRAMÁTICO' or 'EMENTA' section; in English ones it's a topic/unit/module list. COPY the section's text as-is (you may join lines and drop page headers/footers, but do not summarize, reformat into a different structure, or drop items). Its numbering (1., 2., 3.) refers to UNITS, not class sessions - never build 'schedule' entries from this text. It is expected and correct for these same topics to also appear in the session-by-session schedule; extract both independently. Leave empty only if the document truly has no such section.",
       meeting_times: {
         type: "ARRAY",
         description: "The recurring day-of-week/time pattern this class regularly meets, e.g. 'Lectures MWF 10:00-10:50am', 'Discussion section Tuesdays 3-4pm', 'TEACHING DAY & TIME: WEDNESDAYS; 9:00 - 10:40', or Portuguese equivalents ('Aulas às quartas-feiras, 9h-10h40', 'HORÁRIO: SEG e QUA 14:00-15:40'). Portuguese weekday names map as: segunda(-feira)=monday, terça=tuesday, quarta=wednesday, quinta=thursday, sexta=friday, sábado=saturday, domingo=sunday. One entry per weekday the class meets (so 'MWF 10:00-10:50am' becomes three entries: monday, wednesday, friday). Only include a meeting time if the syllabus explicitly states a recurring day and time - never guess one.",

@@ -45,13 +45,6 @@ export interface ScheduleItem {
 
 export type ActivityType = 'quiz' | 'exam' | 'assignment' | 'monitored' | 'lecture' | 'lab';
 
-export interface ContentUnit {
-  title: string;
-  description?: string;
-  topics?: string[];
-  readings?: string[];
-}
-
 export type DayOfWeek = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
 
 export interface MeetingTime {
@@ -66,7 +59,13 @@ export interface CourseData {
   instructors: Instructor[];
   grading: GradingComponent[];
   schedule: ScheduleItem[];
-  content: ContentUnit[];
+  /**
+   * Free-text copy of the syllabus's content/topic outline section
+   * (e.g. "CONTEÚDO", "EMENTA"), verbatim rather than restructured -
+   * these sections vary too much in format (numbered paragraphs,
+   * bullet lists, etc.) for a structured schema to fit reliably.
+   */
+  content: string;
   meeting_times: MeetingTime[];
   policies: {
     late_work: string;

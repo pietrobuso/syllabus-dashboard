@@ -11,7 +11,7 @@ describe("validateAndCleanData", () => {
     expect(result.instructors).toEqual([]);
     expect(result.grading).toEqual([]);
     expect(result.schedule).toEqual([]);
-    expect(result.content).toEqual([]);
+    expect(result.content).toBe("");
     expect(result.meeting_times).toEqual([]);
     expect(result.important_dates).toEqual([]);
   });
@@ -81,17 +81,13 @@ describe("validateAndCleanData", () => {
     expect(validateAndCleanData({ course: { start_date: "agosto" } }).course.start_date).toBe("");
   });
 
-  it("keeps content units with a title and drops ones without", () => {
-    const result = validateAndCleanData({
-      content: [
-        { title: "Unit 1: Functions", topics: ["Recursion", ""], readings: ["Ch. 3"] },
-        { description: "no title, should be dropped" },
-      ],
-    });
+  it("keeps content as free text, trimmed", () => {
+    expect(validateAndCleanData({ content: "  1. Unit one\n2. Unit two  " }).content).toBe("1. Unit one\n2. Unit two");
+  });
 
-    expect(result.content).toEqual([
-      { title: "Unit 1: Functions", description: "", topics: ["Recursion"], readings: ["Ch. 3"] },
-    ]);
+  it("ignores non-string content instead of guessing a structure for it", () => {
+    expect(validateAndCleanData({ content: [{ title: "Unit 1" }] }).content).toBe("");
+    expect(validateAndCleanData({ content: 123 }).content).toBe("");
   });
 
   it("keeps only meeting_times with a valid day and HH:MM start/end times", () => {

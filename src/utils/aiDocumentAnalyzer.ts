@@ -95,7 +95,7 @@ const createFallbackData = (text: string): CourseData => {
     }] : [],
     grading: [],
     schedule: [],
-    content: [],
+    content: "",
     meeting_times: [],
     policies: {
       late_work: "",
@@ -172,16 +172,7 @@ export const validateAndCleanData = (data: any): CourseData => {
             readings: Array.isArray(item.readings) ? item.readings.filter(Boolean) : []
           }))
       : [],
-    content: Array.isArray(data.content)
-      ? data.content
-          .filter((unit: any) => unit?.title)
-          .map((unit: any) => ({
-            title: unit.title,
-            description: unit.description || "",
-            topics: Array.isArray(unit.topics) ? unit.topics.filter(Boolean) : [],
-            readings: Array.isArray(unit.readings) ? unit.readings.filter(Boolean) : []
-          }))
-      : [],
+    content: typeof data.content === 'string' ? data.content.trim() : "",
     meeting_times: Array.isArray(data.meeting_times)
       ? data.meeting_times
           .filter((m: any) => VALID_DAYS.has(m?.day) && TIME_PATTERN.test(m?.start_time) && TIME_PATTERN.test(m?.end_time))
