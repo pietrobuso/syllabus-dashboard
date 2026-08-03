@@ -32,19 +32,27 @@ const CalendarView = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
 
-  // Generate calendar events from all courses
-  const calendarEvents = useMemo(() => {
+  // Generate calendar events from all courses. Also tracks, per course,
+  // which calendar days already have a real schedule entry - a recurring
+  // meeting time is only a stand-in for "class happens here" and must be
+  // skipped on days the schedule already covers, or the same class shows
+  // up twice (once with its real topic, once as a generic "X Class").
+  const { calendarEvents, occupiedDatesByCourse } = useMemo(() => {
     const events: CalendarEvent[] = [];
+    const occupiedDatesByCourse: Record<string, Set<string>> = {};
 
     courses.forEach(course => {
       if (!course.data) return;
 
       const courseData = course.data as CourseData;
+      const occupiedDates = new Set<string>();
+      occupiedDatesByCourse[course.id] = occupiedDates;
 
       // Add schedule items (classes). Uses resolved dates so session-numbered
       // entries show up once the course has a start date.
       resolveScheduleDates(courseData).forEach((item, index) => {
         if (item.resolvedDate) {
+          occupiedDates.add(format(item.resolvedDate, 'yyyy-MM-dd'));
           events.push({
             id: `${course.id}-schedule-${index}-${item.resolvedDate.toISOString()}`,
             date: item.resolvedDate,
@@ -98,7 +106,7 @@ const CalendarView = () => {
       });
     });
 
-    return events.sort((a, b) => a.date.getTime() - b.date.getTime());
+    return { calendarEvents: events.sort((a, b) => a.date.getTime() - b.date.getTime()), occupiedDatesByCourse };
   }, [courses]);
 
   // Expand recurring weekly meeting times into individual class occurrences.
@@ -120,8 +128,12 @@ const CalendarView = () => {
     courses.forEach(course => {
       if (!course.data) return;
       const courseData = course.data as CourseData;
+      const occupiedDates = occupiedDatesByCourse[course.id];
 
       occurrencesInRange(courseData.meeting_times ?? [], rangeStart, rangeEnd).forEach(({ date, meeting }) => {
+        // Skip: a real schedule entry already represents this class on this day.
+        if (occupiedDates?.has(format(date, 'yyyy-MM-dd'))) return;
+
         events.push({
           id: `${course.id}-meeting-${meeting.day}-${meeting.start_time}-${date.toISOString()}`,
           date,
@@ -134,7 +146,7 @@ const CalendarView = () => {
     });
 
     return events;
-  }, [courses, currentMonth]);
+  }, [courses, currentMonth, occupiedDatesByCourse]);
 
   const allEvents = useMemo(
     () => [...calendarEvents, ...recurringClassEvents].sort((a, b) => a.date.getTime() - b.date.getTime()),
