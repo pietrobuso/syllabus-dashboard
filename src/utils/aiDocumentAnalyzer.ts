@@ -1,6 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { SUPABASE_URL, getFunctionHeaders } from '@/integrations/supabase/config';
 import { CourseData } from '@/types/course';
+import { DEFAULT_TARGET_GRADE } from '@/utils/gradeCalculations';
 
 export interface AnalyzedDocument {
   extractedData: CourseData;
@@ -102,7 +103,8 @@ const createFallbackData = (text: string): CourseData => {
       attendance: "",
       honor_code: ""
     },
-    important_dates: []
+    important_dates: [],
+    grades: { target: DEFAULT_TARGET_GRADE, entries: [] }
   };
 };
 
@@ -196,6 +198,8 @@ export const validateAndCleanData = (data: any): CourseData => {
             date: item.date,
             type: VALID_DATE_TYPES.has(item.type) ? item.type : "other"
           }))
-      : []
+      : [],
+    // Not extracted from the document - the student fills these in.
+    grades: { target: DEFAULT_TARGET_GRADE, entries: [] }
   };
 };

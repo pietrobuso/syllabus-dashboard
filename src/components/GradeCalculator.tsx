@@ -1,47 +1,76 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import { GradingComponent } from "@/types/course";
+import { GradingComponent, StudentGrades } from "@/types/course";
 import { Calculator, Target } from "lucide-react";
 import {
+  buildScoreEntries,
   calculateCurrentGrade,
   calculateRequiredScore,
   entryGrade,
   isGraded,
+  DEFAULT_MAX_POINTS,
   ScoreEntry,
 } from "@/utils/gradeCalculations";
 import { cn } from "@/lib/utils";
 
 interface GradeCalculatorProps {
   grading: GradingComponent[];
+  grades: StudentGrades;
+  onGradesChange: (grades: StudentGrades) => void;
 }
 
-const DEFAULT_TARGET_GRADE = 6;
-const DEFAULT_MAX_POINTS = 10;
+const SAVE_DEBOUNCE_MS = 800;
 
-export const GradeCalculator = ({ grading }: GradeCalculatorProps) => {
-  const [scores, setScores] = useState<ScoreEntry[]>(
-    grading.map(item => ({
-      component: item.component,
-      weight: item.weight,
-      score: null,
-      maxPoints: DEFAULT_MAX_POINTS
-    }))
+export const GradeCalculator = ({ grading, grades, onGradesChange }: GradeCalculatorProps) => {
+  const [scores, setScores] = useState<ScoreEntry[]>(() => buildScoreEntries(grading, grades.entries));
+  const [targetGrade, setTargetGrade] = useState(grades.target);
+
+  // Held in a ref so saving never re-triggers the effect below.
+  const onGradesChangeRef = useRef(onGradesChange);
+  onGradesChangeRef.current = onGradesChange;
+
+  const isInitialRender = useRef(true);
+  const unsavedRef = useRef<StudentGrades | null>(null);
+
+  // Save shortly after typing stops, rather than on every keystroke.
+  useEffect(() => {
+    if (isInitialRender.current) {
+      isInitialRender.current = false;
+      return;
+    }
+
+    const payload: StudentGrades = {
+      target: targetGrade,
+      entries: scores.map(({ component, score, maxPoints }) => ({ component, score, maxPoints })),
+    };
+    unsavedRef.current = payload;
+
+    const timer = setTimeout(() => {
+      onGradesChangeRef.current(payload);
+      unsavedRef.current = null;
+    }, SAVE_DEBOUNCE_MS);
+
+    return () => clearTimeout(timer);
+  }, [scores, targetGrade]);
+
+  // Switching tabs unmounts this component, which would cancel a pending
+  // save mid-debounce and lose the last thing typed - so flush it.
+  useEffect(
+    () => () => {
+      if (unsavedRef.current) onGradesChangeRef.current(unsavedRef.current);
+    },
+    []
   );
-  const [targetGrade, setTargetGrade] = useState(DEFAULT_TARGET_GRADE);
 
   const updateScore = (index: number, score: number | null) => {
-    const newScores = [...scores];
-    newScores[index].score = score;
-    setScores(newScores);
+    setScores(prev => prev.map((entry, i) => (i === index ? { ...entry, score } : entry)));
   };
 
   const updateMaxPoints = (index: number, maxPoints: number) => {
-    const newScores = [...scores];
-    newScores[index].maxPoints = maxPoints;
-    setScores(newScores);
+    setScores(prev => prev.map((entry, i) => (i === index ? { ...entry, maxPoints } : entry)));
   };
 
   const currentGrade = calculateCurrentGrade(scores);

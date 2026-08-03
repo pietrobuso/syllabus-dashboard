@@ -115,5 +115,6 @@ export const mockCourseData: CourseData = {
     { name: "Midterm Exam", date: "2024-02-19", type: "exam" },
     { name: "Final Project Due", date: "2024-04-15", type: "deadline" },
     { name: "Spring Break", date: "2024-03-25", type: "break" }
-  ]
+  ],
+  grades: { target: 6, entries: [] }
 };

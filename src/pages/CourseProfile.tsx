@@ -61,6 +61,12 @@ const CourseProfile = () => {
     setShowEditor(false);
   };
 
+  // Auto-saved as the student types in the calculator, so scores survive
+  // switching tabs, reloading and moving between devices.
+  const handleGradesChange = (grades: CourseData["grades"]) => {
+    updateCourse(courseId, { ...courseData, grades });
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/30">
       <div className="container mx-auto px-4 py-8">
@@ -142,7 +148,11 @@ const CourseProfile = () => {
             </TabsContent>
 
             <TabsContent value="calculator" className="space-y-6">
-              <GradeCalculator grading={courseData.grading} />
+              <GradeCalculator
+                grading={courseData.grading}
+                grades={courseData.grades}
+                onGradesChange={handleGradesChange}
+              />
             </TabsContent>
 
             <TabsContent value="contacts" className="space-y-6">

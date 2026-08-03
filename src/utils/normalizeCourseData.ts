@@ -1,4 +1,5 @@
-import { CourseData } from "@/types/course";
+import { CourseData, StudentGrades } from "@/types/course";
+import { DEFAULT_TARGET_GRADE } from "@/utils/gradeCalculations";
 
 /**
  * "content" was briefly a structured unit list ({ title, description,
@@ -17,11 +18,19 @@ const normalizeContent = (content: any): string => {
   return "";
 };
 
+const normalizeGrades = (grades: any): StudentGrades => ({
+  target: typeof grades?.target === "number" ? grades.target : DEFAULT_TARGET_GRADE,
+  entries: Array.isArray(grades?.entries)
+    ? grades.entries.filter((entry: any) => typeof entry?.component === "string")
+    : [],
+});
+
 /**
  * Backfills fields that didn't exist yet when older courses were saved
- * (e.g. rows created before "content", "meeting_times" and
- * "course.start_date" were added), so the rest of the app can always
- * assume these exist instead of crashing on `undefined.map(...)`.
+ * (e.g. rows created before "content", "meeting_times",
+ * "course.start_date" and "grades" were added), so the rest of the app
+ * can always assume these exist instead of crashing on
+ * `undefined.map(...)`.
  */
 export const normalizeCourseData = (data: any): CourseData => ({
   ...data,
@@ -31,4 +40,5 @@ export const normalizeCourseData = (data: any): CourseData => ({
   },
   content: normalizeContent(data?.content),
   meeting_times: Array.isArray(data?.meeting_times) ? data.meeting_times : [],
+  grades: normalizeGrades(data?.grades),
 });

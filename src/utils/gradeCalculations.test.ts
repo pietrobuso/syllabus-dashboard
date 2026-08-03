@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { calculateCurrentGrade, calculateRequiredScore, entryGrade, isGraded } from "./gradeCalculations";
+import {
+  buildScoreEntries,
+  calculateCurrentGrade,
+  calculateRequiredScore,
+  entryGrade,
+  isGraded,
+} from "./gradeCalculations";
 
 describe("calculateCurrentGrade", () => {
   it("returns null when nothing has been graded yet, rather than a zero", () => {
@@ -78,6 +84,47 @@ describe("calculateRequiredScore", () => {
     const result = calculateRequiredScore(scores, 10);
     expect(result?.achievable).toBe(false);
     expect(result?.score).toBe(10);
+  });
+});
+
+describe("buildScoreEntries", () => {
+  const grading = [
+    { component: "Exams", weight: 0.6 },
+    { component: "Project", weight: 0.4 },
+  ];
+
+  it("starts every component blank when nothing has been saved", () => {
+    const entries = buildScoreEntries(grading, []);
+    expect(entries).toEqual([
+      { component: "Exams", weight: 0.6, score: null, maxPoints: 10 },
+      { component: "Project", weight: 0.4, score: null, maxPoints: 10 },
+    ]);
+  });
+
+  it("restores saved scores by matching the component name", () => {
+    const entries = buildScoreEntries(grading, [{ component: "Project", score: 8, maxPoints: 20 }]);
+    expect(entries[0].score).toBeNull();
+    expect(entries[1]).toEqual({ component: "Project", weight: 0.4, score: 8, maxPoints: 20 });
+  });
+
+  it("keeps a saved score of zero rather than treating it as blank", () => {
+    const entries = buildScoreEntries(grading, [{ component: "Exams", score: 0, maxPoints: 10 }]);
+    expect(entries[0].score).toBe(0);
+  });
+
+  it("drops saved scores whose component no longer exists in the syllabus", () => {
+    const entries = buildScoreEntries(grading, [{ component: "Old Component", score: 9, maxPoints: 10 }]);
+    expect(entries).toHaveLength(2);
+    expect(entries.every(entry => entry.score === null)).toBe(true);
+  });
+
+  it("picks up a weight changed in the syllabus instead of a stale saved one", () => {
+    const entries = buildScoreEntries(
+      [{ component: "Exams", weight: 0.9 }],
+      [{ component: "Exams", score: 7, maxPoints: 10 }]
+    );
+    expect(entries[0].weight).toBe(0.9);
+    expect(entries[0].score).toBe(7);
   });
 });
 

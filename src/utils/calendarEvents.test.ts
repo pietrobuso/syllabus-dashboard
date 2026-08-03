@@ -11,6 +11,7 @@ const courseData = (overrides: Partial<CourseData> = {}): CourseData => ({
   meeting_times: [],
   policies: { late_work: "", attendance: "", honor_code: "" },
   important_dates: [],
+  grades: { target: 6, entries: [] },
   ...overrides,
 });
 
