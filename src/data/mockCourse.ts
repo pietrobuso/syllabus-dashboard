@@ -98,20 +98,9 @@ export const mockCourseData: CourseData = {
       ]
     }
   ],
-  content: [
-    {
-      title: "Unit 1: Foundations",
-      description: "Mathematical foundations underlying most ML methods.",
-      topics: ["Linear algebra review", "Probability review", "Supervised vs. unsupervised learning"],
-      readings: ["Chapter 1-2 of textbook"]
-    },
-    {
-      title: "Unit 2: Supervised Learning",
-      description: "Regression and classification methods.",
-      topics: ["Linear regression", "Logistic regression", "Neural networks"],
-      readings: ["Chapter 3-5 of textbook"]
-    }
-  ],
+  content: `1. Foundations. Mathematical foundations underlying most ML methods: linear algebra review, probability review, supervised vs. unsupervised learning. Readings: Chapter 1-2 of textbook.
+
+2. Supervised Learning. Regression and classification methods: linear regression, logistic regression, neural networks. Readings: Chapter 3-5 of textbook.`,
   meeting_times: [
     { day: "monday", start_time: "14:00", end_time: "15:20", label: "Lecture" },
     { day: "wednesday", start_time: "14:00", end_time: "15:20", label: "Lecture" },

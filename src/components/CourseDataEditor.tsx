@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { CourseData, GradingComponent, Instructor, ActivityType, ContentUnit, MeetingTime, DayOfWeek } from "@/types/course";
+import { CourseData, GradingComponent, Instructor, ActivityType, MeetingTime, DayOfWeek } from "@/types/course";
 import { Plus, Trash2, Save, X, Calendar, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -122,27 +122,8 @@ export const CourseDataEditor = ({ initialData, onSave, onCancel }: CourseDataEd
     }));
   };
 
-  const addContentUnit = () => {
-    setCourseData(prev => ({
-      ...prev,
-      content: [...prev.content, { title: "", description: "", topics: [], readings: [] }]
-    }));
-  };
-
-  const removeContentUnit = (index: number) => {
-    setCourseData(prev => ({
-      ...prev,
-      content: prev.content.filter((_, i) => i !== index)
-    }));
-  };
-
-  const updateContentUnit = (index: number, field: keyof ContentUnit, value: string | string[]) => {
-    setCourseData(prev => ({
-      ...prev,
-      content: prev.content.map((unit, i) =>
-        i === index ? { ...unit, [field]: value } : unit
-      )
-    }));
+  const updateContent = (value: string) => {
+    setCourseData(prev => ({ ...prev, content: value }));
   };
 
   const addMeetingTime = () => {
@@ -528,72 +509,21 @@ export const CourseDataEditor = ({ initialData, onSave, onCancel }: CourseDataEd
         </CardContent>
       </Card>
 
-      {/* Course Content (topic/unit outline without dates) */}
+      {/* Course Content (free-text topic/unit outline, independent of dates) */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle>Course Content</CardTitle>
-            <p className="text-sm text-muted-foreground mt-1">
-              Topics/units the syllabus lists without tying them to a specific week or date
-            </p>
-          </div>
-          <Button size="sm" onClick={addContentUnit}>
-            <Plus className="w-4 h-4 mr-2" />
-            Add Unit
-          </Button>
+        <CardHeader>
+          <CardTitle>Course Content</CardTitle>
+          <p className="text-sm text-muted-foreground mt-1">
+            Paste in the syllabus's topic/unit outline (e.g. its "CONTEÚDO" or "EMENTA" section) as plain text
+          </p>
         </CardHeader>
-        <CardContent className="space-y-4">
-          {courseData.content.map((unit, index) => (
-            <div key={index} className="p-4 border rounded-lg space-y-3">
-              <div className="flex items-center justify-between">
-                <h4 className="font-medium">Unit {index + 1}</h4>
-                <Button size="sm" variant="ghost" onClick={() => removeContentUnit(index)}>
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              </div>
-              <div>
-                <Label htmlFor={`content-title-${index}`}>Title</Label>
-                <Input
-                  id={`content-title-${index}`}
-                  value={unit.title}
-                  onChange={(e) => updateContentUnit(index, 'title', e.target.value)}
-                  placeholder="e.g., Unit 1: Functions"
-                />
-              </div>
-              <div>
-                <Label htmlFor={`content-desc-${index}`}>Description</Label>
-                <Input
-                  id={`content-desc-${index}`}
-                  value={unit.description || ''}
-                  onChange={(e) => updateContentUnit(index, 'description', e.target.value)}
-                  placeholder="Short description"
-                />
-              </div>
-              <div>
-                <Label htmlFor={`content-topics-${index}`}>Topics (comma-separated)</Label>
-                <Input
-                  id={`content-topics-${index}`}
-                  value={unit.topics?.join(', ') || ''}
-                  onChange={(e) => updateContentUnit(index, 'topics', e.target.value.split(',').map(t => t.trim()).filter(t => t))}
-                  placeholder="Recursion, Higher-order functions"
-                />
-              </div>
-              <div>
-                <Label htmlFor={`content-readings-${index}`}>Readings (comma-separated)</Label>
-                <Input
-                  id={`content-readings-${index}`}
-                  value={unit.readings?.join(', ') || ''}
-                  onChange={(e) => updateContentUnit(index, 'readings', e.target.value.split(',').map(r => r.trim()).filter(r => r))}
-                  placeholder="Chapter 3, pp. 40-55"
-                />
-              </div>
-            </div>
-          ))}
-          {courseData.content.length === 0 && (
-            <div className="text-center py-8 text-muted-foreground">
-              <p>No content units yet. Add one if your syllabus lists topics without specific dates.</p>
-            </div>
-          )}
+        <CardContent>
+          <Textarea
+            value={courseData.content}
+            onChange={(e) => updateContent(e.target.value)}
+            placeholder={"1. Unit one topic...\n2. Unit two topic..."}
+            rows={10}
+          />
         </CardContent>
       </Card>
 
