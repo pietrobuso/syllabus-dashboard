@@ -6,53 +6,67 @@ export interface ScoreEntry {
 }
 
 export interface RequiredScoreResult {
+  /** Score needed in each remaining component, on a 0-10 scale. */
   score: number;
+  /** False when even a perfect score everywhere remaining falls short. */
   achievable: boolean;
+  /** True when the target is already secured whatever happens next. */
+  alreadyAchieved: boolean;
 }
 
+export const isGraded = (entry: ScoreEntry): boolean =>
+  entry.score !== null && entry.score >= 0 && entry.maxPoints > 0;
+
+/** A single component's score on a 0-10 scale. */
+export const entryGrade = (entry: ScoreEntry): number =>
+  (entry.score! / entry.maxPoints) * 10;
+
 /**
- * Weighted average of entered scores, on a 0-10 scale.
+ * Weighted average of the components graded so far, on a 0-10 scale.
+ * Returns null when nothing has been entered yet - that's "no grade
+ * yet", which is not the same as scoring a zero.
  */
-export const calculateCurrentGrade = (scores: ScoreEntry[]): number => {
-  let totalWeightedScore = 0;
+export const calculateCurrentGrade = (scores: ScoreEntry[]): number | null => {
+  let weightedTotal = 0;
   let totalWeight = 0;
 
   scores.forEach((entry) => {
-    if (entry.score !== null && entry.score >= 0) {
-      const percentage = (entry.score / entry.maxPoints) * 100;
-      totalWeightedScore += percentage * entry.weight;
+    if (isGraded(entry)) {
+      weightedTotal += entryGrade(entry) * entry.weight;
       totalWeight += entry.weight;
     }
   });
 
-  const percentageGrade = totalWeight > 0 ? totalWeightedScore / totalWeight : 0;
-  return percentageGrade / 10;
+  return totalWeight > 0 ? weightedTotal / totalWeight : null;
 };
 
 /**
- * Average score (0-10 scale) needed on the remaining, ungraded components
- * to reach targetGrade (0-10 scale). Returns null when every component is
- * already graded.
+ * The score needed in each still-ungraded component to finish on
+ * targetGrade, assuming the same score in all of them. Since it's a
+ * weighted average, that score is the same number for every remaining
+ * component - what differs is how much each one moves the final grade.
+ *
+ * Returns null when there's nothing left to grade.
  */
 export const calculateRequiredScore = (
   scores: ScoreEntry[],
   targetGrade: number
 ): RequiredScoreResult | null => {
-  const remainingComponents = scores.filter((entry) => entry.score === null || entry.score < 0);
-  if (remainingComponents.length === 0) return null;
+  const remaining = scores.filter((entry) => !isGraded(entry));
+  if (remaining.length === 0) return null;
 
-  const remainingWeight = remainingComponents.reduce((sum, entry) => sum + entry.weight, 0);
+  const remainingWeight = remaining.reduce((sum, entry) => sum + entry.weight, 0);
   if (remainingWeight === 0) return null;
 
-  const currentWeightedScore = scores
-    .filter((entry) => entry.score !== null && entry.score >= 0)
-    .reduce((sum, entry) => sum + (entry.score! / entry.maxPoints) * 100 * entry.weight, 0);
+  const securedGrade = scores
+    .filter(isGraded)
+    .reduce((sum, entry) => sum + entryGrade(entry) * entry.weight, 0);
 
-  const targetPercentage = targetGrade * 10;
-  const requiredPercentage = (targetPercentage - currentWeightedScore) / remainingWeight;
+  const required = (targetGrade - securedGrade) / remainingWeight;
 
   return {
-    score: Math.max(0, Math.min(100, requiredPercentage)) / 10,
-    achievable: requiredPercentage <= 100,
+    score: Math.max(0, Math.min(10, required)),
+    achievable: required <= 10,
+    alreadyAchieved: required <= 0,
   };
 };

@@ -5,11 +5,21 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { GradingComponent } from "@/types/course";
 import { Calculator, Target } from "lucide-react";
-import { calculateCurrentGrade, calculateRequiredScore, ScoreEntry } from "@/utils/gradeCalculations";
+import {
+  calculateCurrentGrade,
+  calculateRequiredScore,
+  entryGrade,
+  isGraded,
+  ScoreEntry,
+} from "@/utils/gradeCalculations";
+import { cn } from "@/lib/utils";
 
 interface GradeCalculatorProps {
   grading: GradingComponent[];
 }
+
+const DEFAULT_TARGET_GRADE = 6;
+const DEFAULT_MAX_POINTS = 10;
 
 export const GradeCalculator = ({ grading }: GradeCalculatorProps) => {
   const [scores, setScores] = useState<ScoreEntry[]>(
@@ -17,10 +27,10 @@ export const GradeCalculator = ({ grading }: GradeCalculatorProps) => {
       component: item.component,
       weight: item.weight,
       score: null,
-      maxPoints: 100
+      maxPoints: DEFAULT_MAX_POINTS
     }))
   );
-  const [targetGrade, setTargetGrade] = useState(7); // 0-10 scale
+  const [targetGrade, setTargetGrade] = useState(DEFAULT_TARGET_GRADE);
 
   const updateScore = (index: number, score: number | null) => {
     const newScores = [...scores];
@@ -37,10 +47,11 @@ export const GradeCalculator = ({ grading }: GradeCalculatorProps) => {
   const currentGrade = calculateCurrentGrade(scores);
   const requiredScore = calculateRequiredScore(scores, targetGrade);
 
-  const getGradeColor = (grade: number) => {
-    if (grade >= 9) return "text-success";
-    if (grade >= 8) return "text-accent";
-    if (grade >= 7) return "text-warning";
+  // Colour is judged against the target the student actually set, not
+  // against fixed thresholds.
+  const gradeColor = (grade: number) => {
+    if (grade >= targetGrade) return "text-success";
+    if (grade >= targetGrade - 1) return "text-warning";
     return "text-destructive";
   };
 
@@ -77,89 +88,112 @@ export const GradeCalculator = ({ grading }: GradeCalculatorProps) => {
         {/* Score Entries */}
         <div className="space-y-4">
           <h3 className="font-medium text-foreground">Enter your scores:</h3>
-          {scores.map((entry, index) => (
-            <div key={index} className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end p-3 border border-border/50 rounded-lg">
-              <div className="md:col-span-1">
-                <Label className="text-sm font-medium">{entry.component}</Label>
-                <Badge variant="secondary" className="mt-1 text-xs">
-                  {Math.round(entry.weight * 100)}% weight
-                </Badge>
-              </div>
+          {scores.map((entry, index) => {
+            const graded = isGraded(entry);
 
-              <div>
-                <Label className="text-xs text-muted-foreground">Score</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  step="0.1"
-                  placeholder="Score"
-                  value={entry.score === null ? "" : entry.score}
-                  onChange={(e) => updateScore(index, e.target.value ? Number(e.target.value) : null)}
-                  className="text-center"
-                />
-              </div>
+            return (
+              <div key={index} className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end p-3 border border-border/50 rounded-lg">
+                <div className="md:col-span-1">
+                  <Label className="text-sm font-medium">{entry.component}</Label>
+                  <Badge variant="secondary" className="mt-1 text-xs">
+                    {Math.round(entry.weight * 100)}% weight
+                  </Badge>
+                </div>
 
-              <div>
-                <Label className="text-xs text-muted-foreground">Max Points</Label>
-                <Input
-                  type="number"
-                  min="1"
-                  step="0.1"
-                  value={entry.maxPoints}
-                  onChange={(e) => updateMaxPoints(index, Number(e.target.value) || 100)}
-                  className="text-center"
-                />
-              </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Score</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.1"
+                    placeholder="Score"
+                    value={entry.score === null ? "" : entry.score}
+                    onChange={(e) => updateScore(index, e.target.value ? Number(e.target.value) : null)}
+                    className="text-center"
+                  />
+                </div>
 
-              <div className="text-sm text-center">
-                {entry.score !== null && entry.score >= 0 ? (
-                  <div>
-                    <span className="font-semibold">
-                      {((entry.score / entry.maxPoints) * 10).toFixed(1)} / 10
-                    </span>
-                    <div className="text-xs text-muted-foreground">
-                      {(((entry.score / entry.maxPoints) * 10) * entry.weight).toFixed(2)} pts
+                <div>
+                  <Label className="text-xs text-muted-foreground">Out of</Label>
+                  <Input
+                    type="number"
+                    min="0.1"
+                    step="0.1"
+                    value={entry.maxPoints}
+                    onChange={(e) => updateMaxPoints(index, Number(e.target.value) || DEFAULT_MAX_POINTS)}
+                    className="text-center"
+                  />
+                </div>
+
+                <div className="text-sm text-center">
+                  {graded ? (
+                    <div>
+                      <span className={cn("font-semibold", gradeColor(entryGrade(entry)))}>
+                        {entryGrade(entry).toFixed(1)} / 10
+                      </span>
+                      <div className="text-xs text-muted-foreground">
+                        {(entryGrade(entry) * entry.weight).toFixed(2)} pts of final
+                      </div>
                     </div>
-                  </div>
-                ) : (
-                  <span className="text-muted-foreground text-xs">Not entered</span>
-                )}
+                  ) : requiredScore ? (
+                    requiredScore.alreadyAchieved ? (
+                      <div>
+                        <span className="font-semibold text-success">Any score</span>
+                        <div className="text-xs text-muted-foreground">target already secured</div>
+                      </div>
+                    ) : (
+                      <div>
+                        <span className={cn(
+                          "font-semibold",
+                          requiredScore.achievable ? "text-primary" : "text-destructive"
+                        )}>
+                          Need {requiredScore.score.toFixed(1)}
+                        </span>
+                        <div className="text-xs text-muted-foreground">
+                          {requiredScore.achievable ? "to hit your target" : "not reachable"}
+                        </div>
+                      </div>
+                    )
+                  ) : (
+                    <span className="text-muted-foreground text-xs">Not entered</span>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Results */}
         <div className="space-y-4 p-4 bg-gradient-card rounded-lg border border-border/50">
-          {/* Current Grade */}
           <div className="flex items-center justify-between">
-            <span className="font-medium">Current Grade:</span>
-            <span className={`text-2xl font-bold ${getGradeColor(currentGrade)}`}>
-              {currentGrade.toFixed(1)} / 10
-            </span>
+            <div>
+              <span className="font-medium">Current Grade</span>
+              <p className="text-xs text-muted-foreground">
+                Weighted average of what's been graded so far
+              </p>
+            </div>
+            {currentGrade === null ? (
+              <span className="text-2xl font-bold text-muted-foreground">—</span>
+            ) : (
+              <span className={cn("text-2xl font-bold", gradeColor(currentGrade))}>
+                {currentGrade.toFixed(1)} / 10
+              </span>
+            )}
           </div>
 
-          {/* Required Score */}
           {requiredScore && (
             <div className="border-t border-border/30 pt-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className="font-medium">Required Average for Remaining:</span>
-                <span className={`text-xl font-semibold ${
-                  requiredScore.achievable ? 'text-primary' : 'text-destructive'
-                }`}>
-                  {requiredScore.score.toFixed(1)} / 10
-                </span>
-              </div>
-
-              {!requiredScore.achievable && (
-                <div className="p-2 bg-destructive/10 border border-destructive/20 rounded text-sm text-destructive">
-                  Target grade may not be achievable with current scores.
-                </div>
-              )}
-
-              {requiredScore.achievable && requiredScore.score <= 7 && (
+              {requiredScore.alreadyAchieved ? (
                 <div className="p-2 bg-success/10 border border-success/20 rounded text-sm text-success">
-                  Your target grade is easily achievable!
+                  You've already secured your target of {targetGrade.toFixed(1)} — whatever you score on what's left.
+                </div>
+              ) : requiredScore.achievable ? (
+                <div className="p-2 bg-primary/10 border border-primary/20 rounded text-sm text-primary">
+                  Score {requiredScore.score.toFixed(1)} in each remaining component to finish on {targetGrade.toFixed(1)}.
+                </div>
+              ) : (
+                <div className="p-2 bg-destructive/10 border border-destructive/20 rounded text-sm text-destructive">
+                  A target of {targetGrade.toFixed(1)} is no longer reachable, even with a perfect 10 on everything left.
                 </div>
               )}
             </div>
