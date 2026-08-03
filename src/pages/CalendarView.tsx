@@ -6,6 +6,7 @@ import {
   addDays,
   addMonths,
   eachDayOfInterval,
+  endOfDay,
   endOfMonth,
   endOfWeek,
   format,
@@ -27,8 +28,10 @@ import { cn } from "@/lib/utils";
 
 type ViewMode = "month" | "week" | "day";
 
-/** How far past the visible range to generate recurring meetings. */
+/** How far either side of the visible range to generate recurring meetings. */
 const RECURRING_PADDING_DAYS = 45;
+/** How far ahead of today "Coming Up" should be able to look. */
+const UPCOMING_WINDOW_DAYS = 60;
 
 const CalendarView = () => {
   const { courses } = useCourses();
@@ -54,8 +57,16 @@ const CalendarView = () => {
   }, [viewMode, anchorDate]);
 
   const events = useMemo(() => {
-    const rangeStart = addDays(visibleDays[0], -RECURRING_PADDING_DAYS);
-    const rangeEnd = addDays(visibleDays[visibleDays.length - 1], RECURRING_PADDING_DAYS);
+    // Recurring meetings repeat forever, so they're only generated within a
+    // range. It has to cover the visible days *and* a window from today, or
+    // "Coming Up" would empty out whenever you browse to a distant month.
+    const today = new Date();
+    const paddedStart = addDays(visibleDays[0], -RECURRING_PADDING_DAYS);
+    const paddedEnd = addDays(visibleDays[visibleDays.length - 1], RECURRING_PADDING_DAYS);
+
+    const rangeStart = today < paddedStart ? today : paddedStart;
+    const upcomingEnd = addDays(today, UPCOMING_WINDOW_DAYS);
+    const rangeEnd = endOfDay(upcomingEnd > paddedEnd ? upcomingEnd : paddedEnd);
 
     return buildCalendarEvents(
       courses.map(course => ({ id: course.id, data: course.data as CourseData })),

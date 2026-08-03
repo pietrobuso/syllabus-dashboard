@@ -16,9 +16,11 @@ const courseData = (overrides: Partial<CourseData> = {}): CourseData => ({
 
 const course = (data: CourseData, id = "c1"): CourseWithData => ({ id, data });
 
-// Wednesday 2026-08-05 .. Wednesday 2026-09-02
+// Wednesday 2026-08-05 .. Wednesday 2026-09-02. The end is the *end* of
+// that day: the range boundary is a precise instant, so a midnight end
+// would exclude a class held at 09:00 on that same day.
 const RANGE_START = new Date(2026, 7, 5);
-const RANGE_END = new Date(2026, 8, 2);
+const RANGE_END = new Date(2026, 8, 2, 23, 59, 59);
 
 describe("buildCalendarEvents", () => {
   it("gives a schedule class the clock time of that weekday's meeting", () => {
